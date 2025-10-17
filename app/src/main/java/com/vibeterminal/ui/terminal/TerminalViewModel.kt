@@ -204,11 +204,29 @@ class TerminalViewModel : ViewModel() {
      * Request camera
      */
     fun requestCamera() {
-        _filePickerTrigger.value = FilePickerType.CAMERA
-        // Reset immediately
-        viewModelScope.launch {
-            kotlinx.coroutines.delay(100)
-            _filePickerTrigger.value = FilePickerType.NONE
+        appContext?.let { context ->
+            // Create a temporary file for the camera photo
+            val photoFile = File.createTempFile(
+                "JPEG_${System.currentTimeMillis()}_",
+                ".jpg",
+                context.cacheDir
+            )
+
+            // Create content URI using FileProvider
+            val photoUri = androidx.core.content.FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                photoFile
+            )
+
+            _cameraUri.value = photoUri
+            _filePickerTrigger.value = FilePickerType.CAMERA
+
+            // Reset immediately
+            viewModelScope.launch {
+                kotlinx.coroutines.delay(100)
+                _filePickerTrigger.value = FilePickerType.NONE
+            }
         }
     }
 

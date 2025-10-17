@@ -31,6 +31,9 @@ fun TerminalScreen(
     val isTranslationVisible by viewModel.isTranslationVisible.collectAsState()
     val currentTranslation by viewModel.currentTranslation.collectAsState()
     val filePickerTrigger by viewModel.filePickerTrigger.collectAsState()
+    val cameraUri by viewModel.cameraUri.collectAsState()
+
+    val context = LocalContext.current
 
     // File picker launcher
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -61,7 +64,10 @@ fun TerminalScreen(
             FilePickerType.FILE -> filePickerLauncher.launch("*/*")
             FilePickerType.IMAGE -> imagePickerLauncher.launch("image/*")
             FilePickerType.CAMERA -> {
-                // Camera will be handled separately with URI
+                // Create URI for camera photo
+                cameraUri?.let { uri ->
+                    cameraLauncher.launch(uri)
+                }
             }
             FilePickerType.NONE -> {}
         }
