@@ -75,6 +75,9 @@ dependencies {
     // Compose Navigation
     implementation("androidx.navigation:navigation-compose:2.7.6")
 
+    // Window Size Class (for adaptive layouts)
+    implementation("androidx.compose.material3:material3-window-size-class:1.2.0")
+
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
