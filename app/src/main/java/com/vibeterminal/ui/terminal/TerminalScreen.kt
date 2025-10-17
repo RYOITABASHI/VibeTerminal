@@ -35,6 +35,13 @@ fun TerminalScreen(
 
     val context = LocalContext.current
 
+    // Initialize ViewModel with context
+    LaunchedEffect(Unit) {
+        // Translation patterns are in assets/translations
+        val patternsDir = java.io.File(context.applicationInfo.dataDir, "translations")
+        viewModel.initialize(patternsDir, context)
+    }
+
     // File picker launcher
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
