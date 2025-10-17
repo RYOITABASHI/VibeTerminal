@@ -23,6 +23,12 @@ class SettingsViewModel : ViewModel() {
     private val _useAiTranslation = MutableStateFlow(false)
     val useAiTranslation: StateFlow<Boolean> = _useAiTranslation.asStateFlow()
 
+    private val _openAiApiKey = MutableStateFlow("")
+    val openAiApiKey: StateFlow<String> = _openAiApiKey.asStateFlow()
+
+    private val _openAiModel = MutableStateFlow("gpt-4o-mini")
+    val openAiModel: StateFlow<String> = _openAiModel.asStateFlow()
+
     fun setDarkTheme(enabled: Boolean) {
         viewModelScope.launch {
             _isDarkTheme.value = enabled
@@ -54,6 +60,20 @@ class SettingsViewModel : ViewModel() {
     fun setUseAiTranslation(enabled: Boolean) {
         viewModelScope.launch {
             _useAiTranslation.value = enabled
+            // TODO: Save to DataStore
+        }
+    }
+
+    fun setOpenAiApiKey(key: String) {
+        viewModelScope.launch {
+            _openAiApiKey.value = key
+            // TODO: Save to encrypted DataStore
+        }
+    }
+
+    fun setOpenAiModel(model: String) {
+        viewModelScope.launch {
+            _openAiModel.value = model
             // TODO: Save to DataStore
         }
     }

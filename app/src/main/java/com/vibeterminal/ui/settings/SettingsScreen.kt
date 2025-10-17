@@ -22,6 +22,8 @@ fun SettingsScreen(
     val translationEnabled by viewModel.translationEnabled.collectAsState()
     val llmApiKey by viewModel.llmApiKey.collectAsState()
     val useAiTranslation by viewModel.useAiTranslation.collectAsState()
+    val openAiApiKey by viewModel.openAiApiKey.collectAsState()
+    val openAiModel by viewModel.openAiModel.collectAsState()
 
     Scaffold(
         topBar = {
@@ -85,6 +87,27 @@ fun SettingsScreen(
                     value = llmApiKey,
                     onValueChange = { viewModel.setLlmApiKey(it) },
                     isPassword = true
+                )
+            }
+
+            // AI Chat Section
+            SettingsSection(title = "AI Chat") {
+                TextFieldPreference(
+                    title = "OpenAI API Key",
+                    subtitle = "API key for ChatGPT integration",
+                    icon = Icons.Default.Key,
+                    value = openAiApiKey,
+                    onValueChange = { viewModel.setOpenAiApiKey(it) },
+                    isPassword = true
+                )
+
+                Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+                PreferenceItem(
+                    title = "Model",
+                    subtitle = openAiModel,
+                    icon = Icons.Default.SmartToy,
+                    onClick = { /* TODO: Model selector dialog */ }
                 )
             }
 
