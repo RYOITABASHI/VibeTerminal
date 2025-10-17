@@ -55,31 +55,36 @@ fun GestureOverlay(
     Box(
         modifier = modifier
             .pointerInput(Unit) {
+                var totalDrag = androidx.compose.ui.geometry.Offset.Zero
+
                 detectDragGestures(
+                    onDragStart = {
+                        totalDrag = androidx.compose.ui.geometry.Offset.Zero
+                    },
                     onDrag = { change, dragAmount ->
                         change.consume()
+                        totalDrag += dragAmount
                     },
                     onDragEnd = {
+                        val threshold = 100f
+
+                        when {
+                            totalDrag.x > threshold && abs(totalDrag.y) < threshold -> {
+                                gestureIndicator = GestureAction.SWIPE_RIGHT
+                                onGesture(GestureAction.SWIPE_RIGHT)
+                            }
+                            totalDrag.x < -threshold && abs(totalDrag.y) < threshold -> {
+                                gestureIndicator = GestureAction.SWIPE_LEFT
+                                onGesture(GestureAction.SWIPE_LEFT)
+                            }
+                            totalDrag.y < -threshold && abs(totalDrag.x) < threshold -> {
+                                gestureIndicator = GestureAction.SWIPE_UP
+                                onGesture(GestureAction.SWIPE_UP)
+                            }
+                        }
                         gestureIndicator = null
                     }
-                ) { change, dragAmount ->
-                    val threshold = 100f
-
-                    when {
-                        dragAmount.x > threshold && abs(dragAmount.y) < threshold -> {
-                            gestureIndicator = GestureAction.SWIPE_RIGHT
-                            onGesture(GestureAction.SWIPE_RIGHT)
-                        }
-                        dragAmount.x < -threshold && abs(dragAmount.y) < threshold -> {
-                            gestureIndicator = GestureAction.SWIPE_LEFT
-                            onGesture(GestureAction.SWIPE_LEFT)
-                        }
-                        dragAmount.y < -threshold && abs(dragAmount.x) < threshold -> {
-                            gestureIndicator = GestureAction.SWIPE_UP
-                            onGesture(GestureAction.SWIPE_UP)
-                        }
-                    }
-                }
+                )
             }
             .pointerInput(Unit) {
                 detectTapGestures(

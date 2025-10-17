@@ -122,7 +122,7 @@ fun TerminalScreen(
                             imageVector = if (isTranslationVisible)
                                 Icons.Default.Translate
                             else
-                                Icons.Default.TranslateOff,
+                                Icons.Default.Close,
                             contentDescription = "Toggle Translation"
                         )
                     }
