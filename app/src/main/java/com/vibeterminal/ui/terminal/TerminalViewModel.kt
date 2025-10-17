@@ -1,5 +1,7 @@
 package com.vibeterminal.ui.terminal
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vibeterminal.core.translator.TranslationEngine
@@ -39,11 +41,21 @@ class TerminalViewModel : ViewModel() {
     // Translation engine
     private lateinit var translationEngine: TranslationEngine
 
-    fun initialize(patternsDir: File) {
+    // File picker state
+    private val _filePickerTrigger = MutableStateFlow(FilePickerType.NONE)
+    val filePickerTrigger: StateFlow<FilePickerType> = _filePickerTrigger.asStateFlow()
+
+    private val _cameraUri = MutableStateFlow<Uri?>(null)
+    val cameraUri: StateFlow<Uri?> = _cameraUri.asStateFlow()
+
+    private var appContext: Context? = null
+
+    fun initialize(patternsDir: File, context: Context? = null) {
         translationEngine = TranslationEngine(
             patternsDir = patternsDir,
             llmApiKey = null // TODO: Load from settings
         )
+        appContext = context
     }
 
     /**
@@ -162,5 +174,88 @@ class TerminalViewModel : ViewModel() {
      */
     fun clearTranslationCache() {
         // TODO: Implement
+    }
+
+    /**
+     * Request file picker
+     */
+    fun requestFilePicker() {
+        _filePickerTrigger.value = FilePickerType.FILE
+        // Reset immediately
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(100)
+            _filePickerTrigger.value = FilePickerType.NONE
+        }
+    }
+
+    /**
+     * Request image picker
+     */
+    fun requestImagePicker() {
+        _filePickerTrigger.value = FilePickerType.IMAGE
+        // Reset immediately
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(100)
+            _filePickerTrigger.value = FilePickerType.NONE
+        }
+    }
+
+    /**
+     * Request camera
+     */
+    fun requestCamera() {
+        _filePickerTrigger.value = FilePickerType.CAMERA
+        // Reset immediately
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(100)
+            _filePickerTrigger.value = FilePickerType.NONE
+        }
+    }
+
+    /**
+     * Handle file selection
+     */
+    fun onFileSelected(uri: Uri) {
+        viewModelScope.launch {
+            try {
+                // Get file path from URI
+                val filePath = getPathFromUri(uri)
+
+                // Insert file path into terminal
+                val currentOutput = _terminalOutput.value
+                _terminalOutput.value = "$currentOutput\n📎 File: $filePath"
+
+                // Optionally, add to command input
+                // You might want to expose inputText as a state to append to it
+            } catch (e: Exception) {
+                _terminalOutput.value += "\n❌ Failed to process file: ${e.message}"
+            }
+        }
+    }
+
+    /**
+     * Handle camera photo taken
+     */
+    fun onCameraPhotoTaken() {
+        _cameraUri.value?.let { uri ->
+            onFileSelected(uri)
+        }
+    }
+
+    /**
+     * Get file path from URI
+     */
+    private fun getPathFromUri(uri: Uri): String {
+        // For content:// URIs, return the URI string
+        // In a real implementation, you might want to copy the file to app storage
+        return when (uri.scheme) {
+            "file" -> uri.path ?: uri.toString()
+            "content" -> {
+                // For content URIs, you might want to copy to cache dir
+                // For now, just return the URI
+                uri.toString()
+            }
+            else -> uri.toString()
+        }
     }
 }

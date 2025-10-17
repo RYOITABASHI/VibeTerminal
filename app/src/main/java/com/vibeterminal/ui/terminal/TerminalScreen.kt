@@ -4,6 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.selection.SelectionContainer
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -27,6 +30,42 @@ fun TerminalScreen(
     val terminalOutput by viewModel.terminalOutput.collectAsState()
     val isTranslationVisible by viewModel.isTranslationVisible.collectAsState()
     val currentTranslation by viewModel.currentTranslation.collectAsState()
+    val filePickerTrigger by viewModel.filePickerTrigger.collectAsState()
+
+    // File picker launcher
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { viewModel.onFileSelected(it) }
+    }
+
+    // Image picker launcher
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { viewModel.onFileSelected(it) }
+    }
+
+    // Camera launcher
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            viewModel.onCameraPhotoTaken()
+        }
+    }
+
+    // Handle file picker triggers
+    LaunchedEffect(filePickerTrigger) {
+        when (filePickerTrigger) {
+            FilePickerType.FILE -> filePickerLauncher.launch("*/*")
+            FilePickerType.IMAGE -> imagePickerLauncher.launch("image/*")
+            FilePickerType.CAMERA -> {
+                // Camera will be handled separately with URI
+            }
+            FilePickerType.NONE -> {}
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -52,6 +91,53 @@ fun TerminalScreen(
                         Icon(
                             imageVector = Icons.Default.Keyboard,
                             contentDescription = "Toggle Keyboard"
+                        )
+                    }
+
+                    // File picker menu
+                    var showFileMenu by remember { mutableStateOf(false) }
+
+                    IconButton(onClick = { showFileMenu = true }) {
+                        Icon(
+                            imageVector = Icons.Default.AttachFile,
+                            contentDescription = "Attach File"
+                        )
+                    }
+
+                    // File picker dropdown menu
+                    DropdownMenu(
+                        expanded = showFileMenu,
+                        onDismissRequest = { showFileMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("📷 カメラで撮影") },
+                            onClick = {
+                                showFileMenu = false
+                                viewModel.requestCamera()
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.CameraAlt, contentDescription = null)
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🖼️ 画像を選択") },
+                            onClick = {
+                                showFileMenu = false
+                                viewModel.requestImagePicker()
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.Image, contentDescription = null)
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("📁 ファイルを選択") },
+                            onClick = {
+                                showFileMenu = false
+                                viewModel.requestFilePicker()
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.InsertDriveFile, contentDescription = null)
+                            }
                         )
                     }
                 }
