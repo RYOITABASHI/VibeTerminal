@@ -17,6 +17,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.vibeterminal.ui.terminal.TerminalScreen
 import com.vibeterminal.ui.settings.SettingsScreen
+import com.vibeterminal.ui.vscode.VSCodeLayout
 
 sealed class Screen(val route: String, val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     object Terminal : Screen("terminal", "Terminal", Icons.Default.Terminal)
@@ -95,7 +96,8 @@ fun VibeTerminalApp() {
                 modifier = Modifier.weight(1f)
             ) {
                 composable(Screen.Terminal.route) {
-                    TerminalScreen()
+                    // Use VS Code-style layout for terminal screen
+                    VSCodeLayout()
                 }
                 composable(Screen.Settings.route) {
                     SettingsScreen()
