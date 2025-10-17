@@ -1,13 +1,31 @@
 # VibeTerminal - モバイルVibe Coding環境
 
-Z Fold6に最適化された、日本語翻訳機能付きTerminalアプリ
+**AI CLI（Claude Code/Codex/Gemini）との共存を前提とした、非エンジニアにも使いやすいZ Fold6最適化ターミナル**
 
-## 🚀 特徴
+## 🎯 プロジェクトビジョン
 
-- **リアルタイム翻訳**: コマンド出力を即座に日本語化
-- **日本語IME対応**: 変換中のテキストをリアルタイム表示
-- **Z Fold6最適化**: 展開時は左右分割UI、折りたたみ時はコンパクト表示
-- **オフライン優先**: ローカルパターンマッチング（50+パターン）
+将来のモバイル向けオンデバイスLLMの普及を見据え、モバイル単体で様々なCLIを使ってVibe Codingが出来る環境を目指します。
+プロにも非エンジニアにも使いやすい、次世代のモバイル開発環境です。
+
+## 🚀 主要機能
+
+### 🤖 AI CLI補完機能（NEW!）
+- **リアルタイム出力解析**: AI CLIの状態を自動検出（思考中/実行中/待機中/エラー/成功）
+- **初心者向けサマリー**: 専門用語を日本語で分かりやすく説明
+- **プロンプトテンプレート**: 11種類のテンプレートでAI CLIを素早く操作
+- **タッチジェスチャー**: スワイプでyes/no入力、長押しで翻訳表示
+- **進捗可視化**: タスク一覧と進捗バーでAIの作業状況を把握
+
+### 🌐 翻訳機能
+- **ハイブリッド翻訳**: ローカル（50+パターン）+ Gemini AI
+- **リアルタイム**: コマンド出力を即座に日本語化
+- **カテゴリ別表示**: エラー/警告/成功/情報を色分け
+- **解決方法提示**: エラー時の対処法を自動提案
+
+### 📱 モバイル最適化
+- **Z Fold6対応**: 展開時は左右分割、折りたたみ時はコンパクト表示
+- **日本語IME**: 変換中のテキストをリアルタイム表示
+- **ファイル添付**: カメラ/画像/ファイルピッカー統合
 - **Material3 UI**: モダンでアクセシブルなデザイン
 - **タッチ最適化**: 44dp以上のタッチターゲット
 
@@ -66,13 +84,19 @@ VibeTerminal/
 │   │   ├── java/com/vibeterminal/
 │   │   │   ├── MainActivity.kt
 │   │   │   ├── core/translator/
-│   │   │   │   └── TranslationEngine.kt
+│   │   │   │   └── TranslationEngine.kt    # Gemini AI + Local patterns
 │   │   │   └── ui/
 │   │   │       ├── VibeTerminalApp.kt
+│   │   │       ├── aicli/                  # NEW! AI CLI assistance
+│   │   │       │   ├── PromptTemplate.kt
+│   │   │       │   ├── PromptTemplateScreen.kt
+│   │   │       │   ├── GestureHandler.kt
+│   │   │       │   └── AICLIOutputAnalyzer.kt
 │   │   │       ├── terminal/
 │   │   │       │   ├── TerminalScreen.kt
 │   │   │       │   ├── TerminalViewModel.kt
-│   │   │       │   └── TranslationOverlay.kt
+│   │   │       │   ├── TranslationOverlay.kt
+│   │   │       │   └── FilePickerType.kt
 │   │   │       ├── settings/
 │   │   │       │   ├── SettingsScreen.kt
 │   │   │       │   └── SettingsViewModel.kt
@@ -92,7 +116,8 @@ VibeTerminal/
 ├── translations/              # Source translation files
 ├── docs/
 │   ├── ARCHITECTURE.md
-│   └── DEVELOPMENT_LOG.md
+│   ├── DEVELOPMENT_LOG.md
+│   └── COMPLETION_SUMMARY.md
 ├── build.gradle.kts
 ├── settings.gradle.kts
 └── README.md
@@ -100,25 +125,45 @@ VibeTerminal/
 
 ## 🎯 開発状況
 
-### ✅ 完成済み (v0.1.0-alpha)
+**完成度: 97%** 🎉
 
-- [x] プロジェクト構造
-- [x] 翻訳エンジンコア
-- [x] 日本語IMEブリッジ
+### ✅ v1.0 完成機能
+
+#### コア機能
+- [x] プロジェクト構造（MVVM）
+- [x] 翻訳エンジン（Gemini AI + ローカル）
+- [x] 日本語IME完全対応
 - [x] ターミナルUI実装
 - [x] 翻訳オーバーレイ
-- [x] 設定画面
-- [x] Z Fold6アダプティブレイアウト
-- [x] Material3テーマ
-- [x] Gradle設定完了
+- [x] 設定画面（AI翻訳ON/OFF）
 - [x] 50+翻訳パターン
 
-### 🔄 今後の予定
+#### AI CLI補完機能（NEW!）
+- [x] プロンプトテンプレート（11種類）
+- [x] AI CLI出力解析＆サマリー
+- [x] タッチジェスチャー操作
+- [x] リアルタイム進捗可視化
+- [x] ステータス自動検出
 
-- [ ] LLM API統合（Claude/GPT）
-- [ ] 実機テスト＆バグ修正
-- [ ] アプリアイコン作成
-- [ ] Google Playリリース
+#### モバイル最適化
+- [x] Z Fold6アダプティブレイアウト
+- [x] ファイル/画像/カメラ添付
+- [x] Material3テーマ
+- [x] タッチ最適化（44dp+）
+
+### 🚀 v1.1 予定（近日）
+
+- [ ] プロンプト実行履歴＆再実行
+- [ ] 自動確認処理（yes/no）
+- [ ] セッション保存＆復元
+- [ ] APKビルド＆実機テスト
+
+### 🌟 v2.0 ロードマップ
+
+- [ ] オンデバイスLLM対応（Gemma 2B）
+- [ ] Termux統合強化
+- [ ] プラグインシステム
+- [ ] コミュニティ翻訳パターン共有
 
 ## 📖 ドキュメント
 
