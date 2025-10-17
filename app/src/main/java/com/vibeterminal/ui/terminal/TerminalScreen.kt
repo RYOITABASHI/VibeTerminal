@@ -23,6 +23,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vibeterminal.ui.ime.JapaneseIMEBridge
 import com.vibeterminal.ui.aicli.*
 import com.vibeterminal.ui.mcp.*
+import com.vibeterminal.ui.keyboard.VirtualKeyboard
+import com.vibeterminal.ui.keyboard.SpecialKey
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,6 +38,7 @@ fun TerminalScreen(
     val currentTranslation by viewModel.currentTranslation.collectAsState()
     val filePickerTrigger by viewModel.filePickerTrigger.collectAsState()
     val cameraUri by viewModel.cameraUri.collectAsState()
+    val isKeyboardVisible by viewModel.isKeyboardVisible.collectAsState()
 
     // Get settings
     val geminiApiKey by settingsViewModel.llmApiKey.collectAsState()
@@ -219,6 +222,13 @@ fun TerminalScreen(
                     onSendInput = { input ->
                         viewModel.executeCommand(input)
                     },
+                    isKeyboardVisible = isKeyboardVisible,
+                    onSpecialKey = { key ->
+                        handleSpecialKey(key, viewModel)
+                    },
+                    onKeyPress = { key ->
+                        viewModel.sendSpecialKey(key)
+                    },
                     modifier = Modifier.fillMaxSize()
                 )
 
@@ -317,6 +327,9 @@ fun TerminalView(
     output: String,
     onCommand: (String) -> Unit,
     onSendInput: (String) -> Unit = {},
+    isKeyboardVisible: Boolean = false,
+    onSpecialKey: (SpecialKey) -> Unit = {},
+    onKeyPress: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var inputText by remember { mutableStateOf("") }
@@ -399,5 +412,41 @@ fun TerminalView(
                 )
             }
         }
+
+        // Virtual Keyboard
+        if (isKeyboardVisible) {
+            VirtualKeyboard(
+                onKeyPress = { key ->
+                    inputText += key
+                    onKeyPress(key)
+                },
+                onSpecialKey = onSpecialKey,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Handle special key presses from virtual keyboard
+ */
+private fun handleSpecialKey(key: SpecialKey, viewModel: TerminalViewModel) {
+    when (key) {
+        SpecialKey.ESC -> viewModel.sendSpecialKey("\u001B")
+        SpecialKey.TAB -> viewModel.sendSpecialKey("\t")
+        SpecialKey.ENTER -> viewModel.sendSpecialKey("\n")
+        SpecialKey.ARROW_UP -> viewModel.sendSpecialKey("\u001B[A")
+        SpecialKey.ARROW_DOWN -> viewModel.sendSpecialKey("\u001B[B")
+        SpecialKey.ARROW_RIGHT -> viewModel.sendSpecialKey("\u001B[C")
+        SpecialKey.ARROW_LEFT -> viewModel.sendSpecialKey("\u001B[D")
+        SpecialKey.CTRL_C -> viewModel.sendSpecialKey("\u0003")
+        SpecialKey.CTRL_D -> viewModel.sendSpecialKey("\u0004")
+        SpecialKey.CTRL_Z -> viewModel.sendSpecialKey("\u001A")
+        SpecialKey.PAGE_UP -> viewModel.sendSpecialKey("\u001B[5~")
+        SpecialKey.PAGE_DOWN -> viewModel.sendSpecialKey("\u001B[6~")
+        SpecialKey.HOME -> viewModel.sendSpecialKey("\u001B[H")
+        SpecialKey.END -> viewModel.sendSpecialKey("\u001B[F")
     }
 }

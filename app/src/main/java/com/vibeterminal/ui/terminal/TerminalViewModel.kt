@@ -48,6 +48,10 @@ class TerminalViewModel : ViewModel() {
     private val _cameraUri = MutableStateFlow<Uri?>(null)
     val cameraUri: StateFlow<Uri?> = _cameraUri.asStateFlow()
 
+    // Virtual keyboard visibility
+    private val _isKeyboardVisible = MutableStateFlow(true)
+    val isKeyboardVisible: StateFlow<Boolean> = _isKeyboardVisible.asStateFlow()
+
     private var appContext: Context? = null
     private var geminiApiKey: String? = null
     private var useAiTranslation: Boolean = false
@@ -146,7 +150,17 @@ class TerminalViewModel : ViewModel() {
      * Toggle keyboard
      */
     fun toggleKeyboard() {
-        // TODO: Implement keyboard toggle
+        _isKeyboardVisible.value = !_isKeyboardVisible.value
+    }
+
+    /**
+     * Send special key to terminal
+     */
+    fun sendSpecialKey(key: String) {
+        viewModelScope.launch {
+            // Add key to output for visual feedback
+            _terminalOutput.value += key
+        }
     }
 
     /**

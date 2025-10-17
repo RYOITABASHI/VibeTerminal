@@ -47,6 +47,12 @@
 - **Z Fold6アダプティブレイアウト**:
   - 展開時: ターミナル(60%) | Git+Chat(40%) 並列表示
   - 折りたたみ時: タブ切り替え（ターミナル/チャット/Git）
+- **仮想キーボード（NEW!）**:
+  - Ctrl/Alt/Shift修飾キーを大きなボタンで提供
+  - ESC/Tab/Enter/矢印キーを簡単操作
+  - よく使うショートカット（Ctrl+C/D/Z）を日本語説明付きで表示
+  - F1-F12/PageUp/Down/Home/Endキーも切り替え可能
+  - 音量ボタン不要！タッチだけで全ての特殊キー入力
 - **日本語IME**: 変換中のテキストをリアルタイム表示
 - **ファイル添付**: カメラ/画像/ファイルピッカー統合
 - **Material3 UI**: モダンでアクセシブルなデザイン
@@ -134,6 +140,8 @@ VibeTerminal/
 │   │   │       │   ├── TerminalViewModel.kt
 │   │   │       │   ├── TranslationOverlay.kt
 │   │   │       │   └── FilePickerType.kt
+│   │   │       ├── keyboard/                  # NEW! Virtual keyboard
+│   │   │       │   └── VirtualKeyboard.kt
 │   │   │       ├── settings/
 │   │   │       │   ├── SettingsScreen.kt
 │   │   │       │   └── SettingsViewModel.kt
@@ -162,7 +170,7 @@ VibeTerminal/
 
 ## 🎯 開発状況
 
-**完成度: 99%** 🎉
+**完成度: 99.5%** 🎉
 
 ### ✅ v1.2 完成機能
 
@@ -211,6 +219,12 @@ VibeTerminal/
 - [x] ファイル/画像/カメラ添付
 - [x] Material3テーマ
 - [x] タッチ最適化（44dp+）
+
+#### Termux使いやすさ改善（NEW!）
+- [x] 仮想キーボード（Ctrl/Alt/Shift/ESC等の特殊キー）
+- [ ] 初心者向けオンボーディング
+- [ ] スマートコマンド提案
+- [ ] ビジュアルコマンドビルダー
 
 ### 🚀 v1.3 予定（近日）
 

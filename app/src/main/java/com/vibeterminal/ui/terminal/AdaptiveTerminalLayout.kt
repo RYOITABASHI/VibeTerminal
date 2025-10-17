@@ -16,6 +16,7 @@ import com.vibeterminal.ui.chat.ChatPanel
 import com.vibeterminal.ui.chat.ChatViewModel
 import com.vibeterminal.ui.git.GitPanel
 import com.vibeterminal.ui.git.GitViewModel
+import com.vibeterminal.ui.keyboard.SpecialKey
 import java.io.File
 
 /**
