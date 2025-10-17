@@ -1,0 +1,60 @@
+{
+  "patterns": [
+    {
+      "regex": "Unable to find image '(.+)' locally",
+      "translation": "📥 イメージ '$1' をローカルで見つからないため、ダウンロード中...",
+      "emoji": "📥",
+      "category": "info"
+    },
+    {
+      "regex": "Pulling from (.+)",
+      "translation": "⬇️ '$1' から取得中",
+      "emoji": "⬇️",
+      "category": "info"
+    },
+    {
+      "regex": "Status: Downloaded newer image for (.+)",
+      "translation": "✅ 新しいイメージをダウンロード完了: $1",
+      "emoji": "✅",
+      "category": "success"
+    },
+    {
+      "regex": "Status: Image is up to date for (.+)",
+      "translation": "✅ イメージは最新です: $1",
+      "emoji": "✅",
+      "category": "success"
+    },
+    {
+      "regex": "Container (.+) started",
+      "translation": "🚀 コンテナを起動: $1",
+      "emoji": "🚀",
+      "category": "success"
+    },
+    {
+      "regex": "Container (.+) stopped",
+      "translation": "⏹️ コンテナを停止: $1",
+      "emoji": "⏹️",
+      "category": "success"
+    },
+    {
+      "regex": "Error response from daemon: (.+)",
+      "translation": "❌ Dockerエラー: $1",
+      "emoji": "❌",
+      "category": "error"
+    },
+    {
+      "regex": "Cannot connect to the Docker daemon",
+      "translation": "❌ Dockerデーモンに接続できません",
+      "emoji": "❌",
+      "category": "error",
+      "suggestion": "Dockerサービスが起動しているか確認してください"
+    },
+    {
+      "regex": "port is already allocated",
+      "translation": "❌ ポートが既に使用されています",
+      "emoji": "❌",
+      "category": "error",
+      "suggestion": "別のポートを指定するか、使用中のコンテナを停止してください"
+    }
+  ]
+}

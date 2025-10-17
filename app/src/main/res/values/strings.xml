@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">VibeTerminal</string>
+    <string name="terminal_screen">Terminal</string>
+    <string name="settings_screen">Settings</string>
+    <string name="translation_toggle">Toggle Translation</string>
+    <string name="keyboard_toggle">Toggle Keyboard</string>
+    <string name="send_command">Send Command</string>
+    <string name="dismiss_translation">Dismiss Translation</string>
+</resources>

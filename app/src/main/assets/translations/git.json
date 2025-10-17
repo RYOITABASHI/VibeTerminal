@@ -1,0 +1,151 @@
+{
+  "patterns": [
+    {
+      "regex": "Pushing to (.+)",
+      "translation": "📤 プッシュ中: $1",
+      "emoji": "📤",
+      "category": "info"
+    },
+    {
+      "regex": "Counting objects: (\\d+)",
+      "translation": "📦 $1個のオブジェクトをカウント",
+      "emoji": "📦",
+      "category": "info"
+    },
+    {
+      "regex": "Compressing objects: (\\d+)%",
+      "translation": "🗜️ 圧縮中: $1%",
+      "emoji": "🗜️",
+      "category": "progress"
+    },
+    {
+      "regex": "Writing objects: (\\d+)%",
+      "translation": "✍️ 書き込み中: $1%",
+      "emoji": "✍️",
+      "category": "progress"
+    },
+    {
+      "regex": "Total (\\d+) \\(delta (\\d+)\\)",
+      "translation": "✅ 完了: 合計$1個 (差分$2個)",
+      "emoji": "✅",
+      "category": "success"
+    },
+    {
+      "regex": "error: failed to push some refs",
+      "translation": "❌ プッシュ失敗: リモートの変更を先にプルしてください",
+      "emoji": "❌",
+      "category": "error",
+      "suggestion": "git pull origin main"
+    },
+    {
+      "regex": "fatal: not a git repository",
+      "translation": "❌ Gitリポジトリではありません",
+      "emoji": "❌",
+      "category": "error",
+      "suggestion": "git init"
+    },
+    {
+      "regex": "Changes not staged for commit",
+      "translation": "📝 変更がステージされていません",
+      "emoji": "📝",
+      "category": "warning",
+      "suggestion": "git add <file>"
+    },
+    {
+      "regex": "nothing to commit, working tree clean",
+      "translation": "✨ コミットする変更はありません (クリーン)",
+      "emoji": "✨",
+      "category": "success"
+    },
+    {
+      "regex": "branch '(.+)' set up to track",
+      "translation": "🔗 ブランチ '$1' をトラッキング開始",
+      "emoji": "🔗",
+      "category": "success"
+    },
+    {
+      "regex": "Fast-forward",
+      "translation": "⚡ 早送りマージ完了",
+      "emoji": "⚡",
+      "category": "success"
+    },
+    {
+      "regex": "CONFLICT \\((.+)\\): Merge conflict in (.+)",
+      "translation": "⚠️ コンフリクト($1): $2 でマージの衝突",
+      "emoji": "⚠️",
+      "category": "error",
+      "suggestion": "ファイルを編集してコンフリクトを解決してください"
+    },
+    {
+      "regex": "Automatic merge failed",
+      "translation": "❌ 自動マージ失敗: 手動で解決が必要です",
+      "emoji": "❌",
+      "category": "error"
+    },
+    {
+      "regex": "Already up to date",
+      "translation": "✅ 既に最新です",
+      "emoji": "✅",
+      "category": "success"
+    },
+    {
+      "regex": "Switched to branch '(.+)'",
+      "translation": "🔀 ブランチを '$1' に切り替え",
+      "emoji": "🔀",
+      "category": "success"
+    },
+    {
+      "regex": "Deleted branch (.+)",
+      "translation": "🗑️ ブランチ '$1' を削除",
+      "emoji": "🗑️",
+      "category": "success"
+    },
+    {
+      "regex": "Your branch is ahead of '(.+)' by (\\d+) commit",
+      "translation": "📈 あなたのブランチは '$1' より $2コミット進んでいます",
+      "emoji": "📈",
+      "category": "info",
+      "suggestion": "git push"
+    },
+    {
+      "regex": "Your branch is behind '(.+)' by (\\d+) commit",
+      "translation": "📉 あなたのブランチは '$1' より $2コミット遅れています",
+      "emoji": "📉",
+      "category": "warning",
+      "suggestion": "git pull"
+    },
+    {
+      "regex": "Cloning into '(.+)'",
+      "translation": "📥 クローン中: '$1'",
+      "emoji": "📥",
+      "category": "info"
+    },
+    {
+      "regex": "Receiving objects: (\\d+)%",
+      "translation": "⬇️ 受信中: $1%",
+      "emoji": "⬇️",
+      "category": "progress"
+    }
+  ],
+  "commands": {
+    "git push": {
+      "description": "ローカルの変更をリモートリポジトリに送信",
+      "common_errors": [
+        "プッシュ失敗 → git pull してから再度プッシュ",
+        "認証エラー → GitHub tokenを確認"
+      ]
+    },
+    "git pull": {
+      "description": "リモートリポジトリの変更を取得してマージ",
+      "common_errors": [
+        "コンフリクト → ファイルを手動で編集して解決"
+      ]
+    },
+    "git commit": {
+      "description": "変更をローカルリポジトリに記録",
+      "common_errors": [
+        "nothing to commit → 変更がないか、git add し忘れ"
+      ]
+    }
+  }
+}

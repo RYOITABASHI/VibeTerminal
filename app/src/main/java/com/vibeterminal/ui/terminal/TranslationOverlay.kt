@@ -22,46 +22,12 @@ import com.vibeterminal.core.translator.TranslatedOutput
  */
 @Composable
 fun TranslationOverlay(
-    translation: TranslatedOutput?,
-    isVisible: Boolean,
-    onToggle: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(modifier = modifier) {
-        // Toggle button
-        IconButton(
-            onClick = onToggle,
-            modifier = Modifier.align(Alignment.End)
-        ) {
-            Icon(
-                imageVector = if (isVisible) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                contentDescription = if (isVisible) "Hide translation" else "Show translation",
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
-
-        // Translation card
-        AnimatedVisibility(
-            visible = isVisible && translation != null,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut()
-        ) {
-            translation?.let {
-                TranslationCard(translation = it)
-            }
-        }
-    }
-}
-
-@Composable
-private fun TranslationCard(
     translation: TranslatedOutput,
+    onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+        modifier = modifier,
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = getCategoryColor(translation.category)
@@ -72,8 +38,9 @@ private fun TranslationCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Header with emoji and category
+            // Header with emoji, category, and close button
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -87,13 +54,24 @@ private fun TranslationCard(
                 Text(
                     text = "日本語説明",
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
                 )
-
-                Spacer(modifier = Modifier.weight(1f))
 
                 // Source badge
                 SourceBadge(source = translation.source)
+
+                // Close button
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Dismiss",
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
 
             // Translated text

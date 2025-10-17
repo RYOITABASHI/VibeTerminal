@@ -22,11 +22,11 @@ class TerminalViewModel : ViewModel() {
     val terminalOutput: StateFlow<String> = _terminalOutput.asStateFlow()
 
     // Translation state
-    private val _translation = MutableStateFlow<TranslatedOutput?>(null)
-    val translation: StateFlow<TranslatedOutput?> = _translation.asStateFlow()
+    private val _currentTranslation = MutableStateFlow<TranslatedOutput?>(null)
+    val currentTranslation: StateFlow<TranslatedOutput?> = _currentTranslation.asStateFlow()
 
-    private val _showTranslation = MutableStateFlow(true)
-    val showTranslation: StateFlow<Boolean> = _showTranslation.asStateFlow()
+    private val _isTranslationVisible = MutableStateFlow(true)
+    val isTranslationVisible: StateFlow<Boolean> = _isTranslationVisible.asStateFlow()
 
     // IME composing text state
     private val _composingText = MutableStateFlow(ComposingTextState())
@@ -47,15 +47,42 @@ class TerminalViewModel : ViewModel() {
     }
 
     /**
-     * Called when terminal receives new output
+     * Execute a command
      */
-    fun onTerminalOutput(output: String, command: String = "") {
-        _terminalOutput.value = output
-        _currentCommand.value = command
+    fun executeCommand(command: String) {
+        viewModelScope.launch {
+            _currentCommand.value = command
 
-        // Translate output
-        if (_showTranslation.value) {
-            translateOutput(command, output)
+            // Add command to output
+            _terminalOutput.value += "\n$ $command\n"
+
+            try {
+                // Execute command (simplified for now)
+                val output = executeShellCommand(command)
+                _terminalOutput.value += output + "\n"
+
+                // Translate output
+                if (_isTranslationVisible.value) {
+                    translateOutput(command, output)
+                }
+            } catch (e: Exception) {
+                _terminalOutput.value += "Error: ${e.message}\n"
+            }
+        }
+    }
+
+    /**
+     * Execute shell command
+     */
+    private suspend fun executeShellCommand(command: String): String {
+        return try {
+            val process = ProcessBuilder(*command.split(" ").toTypedArray())
+                .redirectErrorStream(true)
+                .start()
+
+            process.inputStream.bufferedReader().readText()
+        } catch (e: Exception) {
+            "Command execution failed: ${e.message}"
         }
     }
 
@@ -70,7 +97,7 @@ class TerminalViewModel : ViewModel() {
                     output = output,
                     useLLM = false // TODO: Check user's Pro status
                 )
-                _translation.value = result
+                _currentTranslation.value = result
             } catch (e: Exception) {
                 // Log error but don't crash
                 e.printStackTrace()
@@ -82,7 +109,21 @@ class TerminalViewModel : ViewModel() {
      * Toggle translation visibility
      */
     fun toggleTranslation() {
-        _showTranslation.value = !_showTranslation.value
+        _isTranslationVisible.value = !_isTranslationVisible.value
+    }
+
+    /**
+     * Toggle keyboard
+     */
+    fun toggleKeyboard() {
+        // TODO: Implement keyboard toggle
+    }
+
+    /**
+     * Dismiss translation overlay
+     */
+    fun dismissTranslation() {
+        _currentTranslation.value = null
     }
 
     /**

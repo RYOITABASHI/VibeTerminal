@@ -1,0 +1,91 @@
+{
+  "patterns": [
+    {
+      "regex": "Permission denied",
+      "translation": "❌ 権限がありません",
+      "emoji": "❌",
+      "category": "error",
+      "suggestion": "sudo を使用するか、ファイルの権限を確認してください"
+    },
+    {
+      "regex": "command not found: (.+)",
+      "translation": "❌ コマンドが見つかりません: $1",
+      "emoji": "❌",
+      "category": "error",
+      "suggestion": "コマンドがインストールされているか確認してください"
+    },
+    {
+      "regex": "No such file or directory",
+      "translation": "❌ ファイルまたはディレクトリが存在しません",
+      "emoji": "❌",
+      "category": "error"
+    },
+    {
+      "regex": "Connection refused",
+      "translation": "❌ 接続が拒否されました",
+      "emoji": "❌",
+      "category": "error",
+      "suggestion": "サーバーが起動しているか確認してください"
+    },
+    {
+      "regex": "Connection timed out",
+      "translation": "⏱️ 接続がタイムアウトしました",
+      "emoji": "⏱️",
+      "category": "error",
+      "suggestion": "ネットワーク接続を確認してください"
+    },
+    {
+      "regex": "(\\d+)% complete",
+      "translation": "📊 進捗: $1%",
+      "emoji": "📊",
+      "category": "progress"
+    },
+    {
+      "regex": "Successfully (.+)",
+      "translation": "✅ 成功: $1",
+      "emoji": "✅",
+      "category": "success"
+    },
+    {
+      "regex": "Failed to (.+)",
+      "translation": "❌ 失敗: $1",
+      "emoji": "❌",
+      "category": "error"
+    },
+    {
+      "regex": "WARNING: (.+)",
+      "translation": "⚠️ 警告: $1",
+      "emoji": "⚠️",
+      "category": "warning"
+    },
+    {
+      "regex": "ERROR: (.+)",
+      "translation": "❌ エラー: $1",
+      "emoji": "❌",
+      "category": "error"
+    }
+  ],
+  "commands": {
+    "ls": {
+      "description": "ファイルとディレクトリの一覧を表示"
+    },
+    "cd": {
+      "description": "ディレクトリを移動"
+    },
+    "pwd": {
+      "description": "現在のディレクトリパスを表示"
+    },
+    "mkdir": {
+      "description": "新しいディレクトリを作成"
+    },
+    "rm": {
+      "description": "ファイルまたはディレクトリを削除"
+    },
+    "cp": {
+      "description": "ファイルまたはディレクトリをコピー"
+    },
+    "mv": {
+      "description": "ファイルまたはディレクトリを移動/リネーム"
+    }
+  }
+}
