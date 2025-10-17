@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vibeterminal.ui.ime.JapaneseIMEBridge
+import com.vibeterminal.ui.aicli.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -167,30 +168,68 @@ fun TerminalScreen(
             )
         }
     ) { paddingValues ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Terminal view
-            TerminalView(
-                output = terminalOutput,
-                onCommand = { command ->
-                    viewModel.executeCommand(command)
-                },
-                modifier = Modifier.fillMaxSize()
+            // AI CLI Summary Panel
+            val analyzer = remember { AICLIOutputAnalyzer() }
+            val summary = remember(terminalOutput) { analyzer.analyze(terminalOutput) }
+
+            AICLISummaryPanel(
+                summary = summary,
+                modifier = Modifier.fillMaxWidth()
             )
 
-            // Translation overlay
-            if (isTranslationVisible && currentTranslation != null) {
-                TranslationOverlay(
-                    translation = currentTranslation!!,
-                    onDismiss = { viewModel.dismissTranslation() },
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .padding(16.dp)
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                // Terminal view
+                TerminalView(
+                    output = terminalOutput,
+                    onCommand = { command ->
+                        viewModel.executeCommand(command)
+                    },
+                    onSendInput = { input ->
+                        viewModel.executeCommand(input)
+                    },
+                    modifier = Modifier.fillMaxSize()
                 )
+
+                // Gesture overlay
+                GestureOverlay(
+                    onGesture = { gesture ->
+                        when (gesture) {
+                            GestureAction.SWIPE_RIGHT -> viewModel.executeCommand("yes")
+                            GestureAction.SWIPE_LEFT -> viewModel.executeCommand("no")
+                            GestureAction.SWIPE_UP -> {
+                                // Copy last prompt - TODO: implement
+                            }
+                            GestureAction.LONG_PRESS -> {
+                                // Show translation - already handled by overlay
+                            }
+                            GestureAction.DOUBLE_TAP -> {
+                                // Send Ctrl+C - TODO: implement
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                // Translation overlay
+                if (isTranslationVisible && currentTranslation != null) {
+                    TranslationOverlay(
+                        translation = currentTranslation!!,
+                        onDismiss = { viewModel.dismissTranslation() },
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    )
+                }
             }
         }
     }
@@ -200,6 +239,7 @@ fun TerminalScreen(
 fun TerminalView(
     output: String,
     onCommand: (String) -> Unit,
+    onSendInput: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var inputText by remember { mutableStateOf("") }
@@ -210,6 +250,14 @@ fun TerminalView(
             .background(Color(0xFF1E1E1E))
             .padding(8.dp)
     ) {
+        // Prompt Template Bar
+        PromptTemplateBar(
+            onTemplateSelected = { template ->
+                inputText = template
+            }
+        )
+
+        Spacer(Modifier.height(8.dp))
         // Terminal output (scrollable)
         SelectionContainer(
             modifier = Modifier
