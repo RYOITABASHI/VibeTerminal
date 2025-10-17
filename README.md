@@ -9,12 +9,19 @@
 
 ## 🚀 主要機能
 
-### 🤖 AI CLI補完機能（NEW!）
+### 🤖 AI CLI補完機能
 - **リアルタイム出力解析**: AI CLIの状態を自動検出（思考中/実行中/待機中/エラー/成功）
 - **初心者向けサマリー**: 専門用語を日本語で分かりやすく説明
 - **プロンプトテンプレート**: 11種類のテンプレートでAI CLIを素早く操作
 - **タッチジェスチャー**: スワイプでyes/no入力、長押しで翻訳表示
 - **進捗可視化**: タスク一覧と進捗バーでAIの作業状況を把握
+
+### 🔌 MCPサーバー統合（NEW!）
+- **サーバー管理**: Serena/Playwright/GitHub等のMCPサーバーをワンタップで起動/停止
+- **接続状態可視化**: 各サーバーの接続状態をリアルタイム表示
+- **ツールクイックアクセス**: ファイル操作、ブラウザ自動化、GitHub操作を簡単実行
+- **接続ログ**: MCPサーバーとの通信履歴を記録・表示
+- **パラメータ入力UI**: ツール実行時のパラメータを視覚的に入力
 
 ### 🌐 翻訳機能
 - **ハイブリッド翻訳**: ローカル（50+パターン）+ Gemini AI
@@ -87,11 +94,16 @@ VibeTerminal/
 │   │   │   │   └── TranslationEngine.kt    # Gemini AI + Local patterns
 │   │   │   └── ui/
 │   │   │       ├── VibeTerminalApp.kt
-│   │   │       ├── aicli/                  # NEW! AI CLI assistance
+│   │   │       ├── aicli/                  # AI CLI assistance
 │   │   │       │   ├── PromptTemplate.kt
 │   │   │       │   ├── PromptTemplateScreen.kt
 │   │   │       │   ├── GestureHandler.kt
 │   │   │       │   └── AICLIOutputAnalyzer.kt
+│   │   │       ├── mcp/                    # NEW! MCP server integration
+│   │   │       │   ├── MCPServer.kt
+│   │   │       │   ├── MCPViewModel.kt
+│   │   │       │   ├── MCPServerPanel.kt
+│   │   │       │   └── MCPToolPanel.kt
 │   │   │       ├── terminal/
 │   │   │       │   ├── TerminalScreen.kt
 │   │   │       │   ├── TerminalViewModel.kt
@@ -125,9 +137,9 @@ VibeTerminal/
 
 ## 🎯 開発状況
 
-**完成度: 97%** 🎉
+**完成度: 98%** 🎉
 
-### ✅ v1.0 完成機能
+### ✅ v1.1 完成機能
 
 #### コア機能
 - [x] プロジェクト構造（MVVM）
@@ -138,12 +150,20 @@ VibeTerminal/
 - [x] 設定画面（AI翻訳ON/OFF）
 - [x] 50+翻訳パターン
 
-#### AI CLI補完機能（NEW!）
+#### AI CLI補完機能
 - [x] プロンプトテンプレート（11種類）
 - [x] AI CLI出力解析＆サマリー
 - [x] タッチジェスチャー操作
 - [x] リアルタイム進捗可視化
 - [x] ステータス自動検出
+
+#### MCPサーバー統合（NEW!）
+- [x] MCPサーバー管理パネル（Serena/Playwright/GitHub）
+- [x] 接続状態監視＆制御
+- [x] MCPツールクイックアクセス
+- [x] ツール実行ダイアログ
+- [x] 接続ログビューアー
+- [x] パラメータ入力フォーム
 
 #### モバイル最適化
 - [x] Z Fold6アダプティブレイアウト
@@ -151,10 +171,10 @@ VibeTerminal/
 - [x] Material3テーマ
 - [x] タッチ最適化（44dp+）
 
-### 🚀 v1.1 予定（近日）
+### 🚀 v1.2 予定（近日）
 
+- [ ] 実MCPサーバー接続実装
 - [ ] プロンプト実行履歴＆再実行
-- [ ] 自動確認処理（yes/no）
 - [ ] セッション保存＆復元
 - [ ] APKビルド＆実機テスト
 

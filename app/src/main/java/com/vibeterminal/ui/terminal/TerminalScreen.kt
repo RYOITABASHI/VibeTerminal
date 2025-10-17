@@ -22,12 +22,14 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vibeterminal.ui.ime.JapaneseIMEBridge
 import com.vibeterminal.ui.aicli.*
+import com.vibeterminal.ui.mcp.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TerminalScreen(
     viewModel: TerminalViewModel = viewModel(),
-    settingsViewModel: com.vibeterminal.ui.settings.SettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    settingsViewModel: com.vibeterminal.ui.settings.SettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
+    mcpViewModel: MCPViewModel = viewModel()
 ) {
     val terminalOutput by viewModel.terminalOutput.collectAsState()
     val isTranslationVisible by viewModel.isTranslationVisible.collectAsState()
@@ -91,6 +93,10 @@ fun TerminalScreen(
         }
     }
 
+    // MCP UI state
+    var showMCPPanel by remember { mutableStateOf(false) }
+    var selectedMCPTool by remember { mutableStateOf<Pair<MCPServer, MCPTool>?>(null) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -99,6 +105,14 @@ fun TerminalScreen(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant
                 ),
                 actions = {
+                    // MCP servers toggle
+                    IconButton(onClick = { showMCPPanel = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Cable,
+                            contentDescription = "MCP Servers"
+                        )
+                    }
+
                     // Translation toggle
                     IconButton(onClick = { viewModel.toggleTranslation() }) {
                         Icon(
@@ -173,6 +187,15 @@ fun TerminalScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            // MCP Tool Quick Access
+            MCPToolQuickAccess(
+                viewModel = mcpViewModel,
+                onToolSelected = { server, tool ->
+                    selectedMCPTool = server to tool
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+
             // AI CLI Summary Panel
             val analyzer = remember { AICLIOutputAnalyzer() }
             val summary = remember(terminalOutput) { analyzer.analyze(terminalOutput) }
@@ -232,6 +255,60 @@ fun TerminalScreen(
                 }
             }
         }
+    }
+
+    // MCP Panel Dialog (outside Scaffold)
+    if (showMCPPanel) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { showMCPPanel = false }) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.9f)
+            ) {
+                Column {
+                    TopAppBar(
+                        title = { Text("MCPサーバー管理") },
+                        navigationIcon = {
+                            IconButton(onClick = { showMCPPanel = false }) {
+                                Icon(Icons.Default.Close, contentDescription = "閉じる")
+                            }
+                        }
+                    )
+
+                    androidx.compose.foundation.lazy.LazyColumn(
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        item {
+                            MCPServerPanel(
+                                viewModel = mcpViewModel,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                        item {
+                            MCPLogsViewer(
+                                viewModel = mcpViewModel,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MCP Tool Execution Dialog (outside Scaffold)
+    selectedMCPTool?.let { (server, tool) ->
+        MCPToolExecutionDialog(
+            server = server,
+            tool = tool,
+            viewModel = mcpViewModel,
+            onDismiss = { selectedMCPTool = null },
+            onCommandGenerated = { command ->
+                viewModel.executeCommand(command)
+                selectedMCPTool = null
+            }
+        )
     }
 }
 
