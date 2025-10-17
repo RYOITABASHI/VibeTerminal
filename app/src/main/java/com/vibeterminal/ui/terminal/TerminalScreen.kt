@@ -25,7 +25,8 @@ import com.vibeterminal.ui.ime.JapaneseIMEBridge
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TerminalScreen(
-    viewModel: TerminalViewModel = viewModel()
+    viewModel: TerminalViewModel = viewModel(),
+    settingsViewModel: com.vibeterminal.ui.settings.SettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val terminalOutput by viewModel.terminalOutput.collectAsState()
     val isTranslationVisible by viewModel.isTranslationVisible.collectAsState()
@@ -33,13 +34,22 @@ fun TerminalScreen(
     val filePickerTrigger by viewModel.filePickerTrigger.collectAsState()
     val cameraUri by viewModel.cameraUri.collectAsState()
 
+    // Get settings
+    val geminiApiKey by settingsViewModel.llmApiKey.collectAsState()
+    val useAiTranslation by settingsViewModel.useAiTranslation.collectAsState()
+
     val context = LocalContext.current
 
-    // Initialize ViewModel with context
+    // Initialize ViewModel with context and settings
     LaunchedEffect(Unit) {
         // Translation patterns are in assets/translations
         val patternsDir = java.io.File(context.applicationInfo.dataDir, "translations")
-        viewModel.initialize(patternsDir, context)
+        viewModel.initialize(patternsDir, context, geminiApiKey, useAiTranslation)
+    }
+
+    // Update settings when they change
+    LaunchedEffect(geminiApiKey, useAiTranslation) {
+        viewModel.updateSettings(geminiApiKey, useAiTranslation)
     }
 
     // File picker launcher

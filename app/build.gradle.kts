@@ -84,6 +84,12 @@ dependencies {
     // DataStore (for settings)
     implementation("androidx.datastore:datastore-preferences:1.0.0")
 
+    // Gemini AI (for advanced translation)
+    implementation("com.google.ai.client.generativeai:generativeai:0.1.2")
+
+    // OkHttp (for network requests)
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
     // Termux Libraries (will be embedded)
     // TODO: Add Termux terminal-emulator and terminal-view libraries
 

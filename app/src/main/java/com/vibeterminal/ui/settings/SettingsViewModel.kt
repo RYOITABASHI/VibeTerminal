@@ -20,6 +20,9 @@ class SettingsViewModel : ViewModel() {
     private val _llmApiKey = MutableStateFlow("")
     val llmApiKey: StateFlow<String> = _llmApiKey.asStateFlow()
 
+    private val _useAiTranslation = MutableStateFlow(false)
+    val useAiTranslation: StateFlow<Boolean> = _useAiTranslation.asStateFlow()
+
     fun setDarkTheme(enabled: Boolean) {
         viewModelScope.launch {
             _isDarkTheme.value = enabled
@@ -45,6 +48,13 @@ class SettingsViewModel : ViewModel() {
         viewModelScope.launch {
             _llmApiKey.value = key
             // TODO: Save to encrypted DataStore
+        }
+    }
+
+    fun setUseAiTranslation(enabled: Boolean) {
+        viewModelScope.launch {
+            _useAiTranslation.value = enabled
+            // TODO: Save to DataStore
         }
     }
 }

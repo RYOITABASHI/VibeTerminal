@@ -49,13 +49,31 @@ class TerminalViewModel : ViewModel() {
     val cameraUri: StateFlow<Uri?> = _cameraUri.asStateFlow()
 
     private var appContext: Context? = null
+    private var geminiApiKey: String? = null
+    private var useAiTranslation: Boolean = false
 
-    fun initialize(patternsDir: File, context: Context? = null) {
+    fun initialize(patternsDir: File, context: Context? = null, apiKey: String? = null, useAi: Boolean = false) {
         translationEngine = TranslationEngine(
             patternsDir = patternsDir,
-            llmApiKey = null // TODO: Load from settings
+            llmApiKey = apiKey
         )
         appContext = context
+        geminiApiKey = apiKey
+        useAiTranslation = useAi
+    }
+
+    fun updateSettings(apiKey: String?, useAi: Boolean) {
+        geminiApiKey = apiKey
+        useAiTranslation = useAi
+
+        // Reinitialize translation engine with new settings
+        if (::translationEngine.isInitialized) {
+            val patternsDir = File(appContext?.filesDir, "translations")
+            translationEngine = TranslationEngine(
+                patternsDir = patternsDir,
+                llmApiKey = apiKey
+            )
+        }
     }
 
     /**
@@ -107,7 +125,7 @@ class TerminalViewModel : ViewModel() {
                 val result = translationEngine.translate(
                     command = command,
                     output = output,
-                    useLLM = false // TODO: Check user's Pro status
+                    useLLM = useAiTranslation && !geminiApiKey.isNullOrBlank()
                 )
                 _currentTranslation.value = result
             } catch (e: Exception) {

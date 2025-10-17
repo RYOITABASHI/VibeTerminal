@@ -21,6 +21,7 @@ fun SettingsScreen(
     val fontSize by viewModel.fontSize.collectAsState()
     val translationEnabled by viewModel.translationEnabled.collectAsState()
     val llmApiKey by viewModel.llmApiKey.collectAsState()
+    val useAiTranslation by viewModel.useAiTranslation.collectAsState()
 
     Scaffold(
         topBar = {
@@ -67,9 +68,19 @@ fun SettingsScreen(
                     onCheckedChange = { viewModel.setTranslationEnabled(it) }
                 )
 
+                Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+                SwitchPreference(
+                    title = "Use AI Translation",
+                    subtitle = "Use Gemini AI for advanced translation (requires API key)",
+                    icon = Icons.Default.AutoAwesome,
+                    checked = useAiTranslation,
+                    onCheckedChange = { viewModel.setUseAiTranslation(it) }
+                )
+
                 TextFieldPreference(
-                    title = "LLM API Key",
-                    subtitle = "Claude API key for advanced translation",
+                    title = "Gemini API Key",
+                    subtitle = "Google AI API key for Gemini translation",
                     icon = Icons.Default.Key,
                     value = llmApiKey,
                     onValueChange = { viewModel.setLlmApiKey(it) },

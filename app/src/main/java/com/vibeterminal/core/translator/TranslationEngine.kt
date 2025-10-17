@@ -1,5 +1,7 @@
 package com.vibeterminal.core.translator
 
+import com.google.ai.client.generativeai.GenerativeModel
+import com.google.ai.client.generativeai.type.generationConfig
 import kotlinx.coroutines.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.Serializable
@@ -192,37 +194,80 @@ class TranslationEngine(
     }
 
     /**
-     * Translate using LLM API (Claude, GPT, etc.)
+     * Translate using Gemini AI API
      */
     private suspend fun translateWithLLM(
         command: String,
         output: String
     ): TranslatedOutput = withContext(Dispatchers.IO) {
 
-        // TODO: Implement actual LLM API call
-        // For now, return a placeholder
+        if (llmApiKey.isNullOrBlank()) {
+            throw IllegalStateException("Gemini API key is not set")
+        }
 
-        val prompt = """
-        コマンド: $command
-        出力:
-        $output
+        try {
+            // Initialize Gemini model
+            val generativeModel = GenerativeModel(
+                modelName = "gemini-1.5-flash",
+                apiKey = llmApiKey,
+                generationConfig = generationConfig {
+                    temperature = 0.7f
+                    topK = 40
+                    topP = 0.95f
+                    maxOutputTokens = 1024
+                }
+            )
 
-        上記のコマンド出力を日本語で簡潔に説明してください。
-        - 絵文字を使ってわかりやすく
-        - エラーの場合は解決方法も提示
-        - 1-3行程度で簡潔に
-        """.trimIndent()
+            val prompt = """
+あなたはターミナル初心者向けの翻訳アシスタントです。
+以下のコマンド出力を日本語で分かりやすく説明してください。
 
-        // Placeholder - actual implementation will call Claude/GPT API
-        return@withContext TranslatedOutput(
-            originalText = output,
-            translatedText = "🤖 LLM翻訳: (実装予定)",
-            emoji = "🤖",
-            category = "info",
-            suggestion = null,
-            confidence = 0.9f,
-            source = TranslationSource.LLM_API
-        )
+【コマンド】
+$command
+
+【出力】
+$output
+
+【回答形式】
+1行目: 適切な絵文字1つ + 1-2文の要約
+2行目以降: 詳しい説明（エラーの場合は解決方法も含む）
+
+簡潔に3-5行程度でお願いします。
+            """.trimIndent()
+
+            // Call Gemini API
+            val response = generativeModel.generateContent(prompt)
+            val translatedText = response.text ?: "翻訳に失敗しました"
+
+            // Parse category from response
+            val category = when {
+                output.contains("error", ignoreCase = true) ||
+                output.contains("failed", ignoreCase = true) -> "error"
+                output.contains("warning", ignoreCase = true) -> "warning"
+                output.contains("success", ignoreCase = true) -> "success"
+                else -> "info"
+            }
+
+            // Extract emoji from first line
+            val lines = translatedText.lines()
+            val firstLine = lines.firstOrNull() ?: translatedText
+            val emoji = firstLine.firstOrNull()?.toString()?.takeIf {
+                it.matches(Regex("[\\p{So}\\p{Sk}]"))
+            } ?: "🤖"
+
+            return@withContext TranslatedOutput(
+                originalText = output,
+                translatedText = translatedText,
+                emoji = emoji,
+                category = category,
+                suggestion = null,
+                confidence = 0.95f,
+                source = TranslationSource.LLM_API
+            )
+        } catch (e: Exception) {
+            println("Gemini API error: ${e.message}")
+            throw e
+        }
     }
 
     /**
