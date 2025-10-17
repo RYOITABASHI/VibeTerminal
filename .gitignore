@@ -1,0 +1,98 @@
+# Android Studio / IntelliJ IDEA
+.idea/
+*.iml
+.gradle/
+local.properties
+.DS_Store
+build/
+captures/
+.externalNativeBuild
+.cxx
+
+# Gradle
+.gradle
+**/build/
+gradle-app.setting
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+
+# Android
+*.apk
+*.ap_
+*.aab
+*.dex
+*.class
+bin/
+gen/
+out/
+release/
+
+# Signing files
+*.jks
+*.keystore
+key.properties
+
+# Android Studio Navigation editor temp files
+.navigation/
+
+# Android Studio captures folder
+captures/
+
+# Lint
+lint/
+lint-results*.xml
+lint-report.html
+
+# Local configuration
+local.properties
+
+# Log Files
+*.log
+
+# Kotlin
+*.kotlin_module
+*.kotlin_builtins
+
+# Backup files
+*.bak
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Secrets and API keys
+secrets.properties
+api_keys.properties
+*.env
+
+# User-specific files
+.classpath
+.project
+.settings/
+
+# Build outputs
+/app/release/
+/app/debug/
+*.aab
+*.apk
+output.json
+
+# NDK
+obj/
+.externalNativeBuild/
+
+# Temporary files
+*.swp
+*.swo
+*~
+.*.sw?
+
+# Test results
+test-results/
+androidTest-results/

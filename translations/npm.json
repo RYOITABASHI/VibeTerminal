@@ -1,0 +1,81 @@
+{
+  "patterns": [
+    {
+      "regex": "npm install",
+      "translation": "📦 パッケージをインストール中...",
+      "emoji": "📦",
+      "category": "info"
+    },
+    {
+      "regex": "added (\\d+) packages?",
+      "translation": "✅ $1個のパッケージを追加",
+      "emoji": "✅",
+      "category": "success"
+    },
+    {
+      "regex": "removed (\\d+) packages?",
+      "translation": "🗑️ $1個のパッケージを削除",
+      "emoji": "🗑️",
+      "category": "success"
+    },
+    {
+      "regex": "updated (\\d+) packages?",
+      "translation": "🔄 $1個のパッケージを更新",
+      "emoji": "🔄",
+      "category": "success"
+    },
+    {
+      "regex": "found (\\d+) vulnerabilities",
+      "translation": "⚠️ $1個の脆弱性を発見",
+      "emoji": "⚠️",
+      "category": "warning",
+      "suggestion": "npm audit fix で修正を試みてください"
+    },
+    {
+      "regex": "npm ERR! code (\\w+)",
+      "translation": "❌ エラー: $1",
+      "emoji": "❌",
+      "category": "error"
+    },
+    {
+      "regex": "npm ERR! ENOENT",
+      "translation": "❌ ファイルまたはディレクトリが見つかりません",
+      "emoji": "❌",
+      "category": "error"
+    },
+    {
+      "regex": "npm ERR! EACCES",
+      "translation": "❌ 権限エラー: sudo なしで実行してください",
+      "emoji": "❌",
+      "category": "error",
+      "suggestion": "npm config set prefix ~/.npm-global"
+    },
+    {
+      "regex": "up to date",
+      "translation": "✅ 全て最新です",
+      "emoji": "✅",
+      "category": "success"
+    },
+    {
+      "regex": "audited (\\d+) packages?",
+      "translation": "🔍 $1個のパッケージを監査",
+      "emoji": "🔍",
+      "category": "info"
+    }
+  ],
+  "commands": {
+    "npm install": {
+      "description": "package.jsonの依存関係をインストール",
+      "common_errors": [
+        "ENOENT → package.jsonが存在しないディレクトリで実行",
+        "EACCES → 権限エラー、sudoを使わないこと"
+      ]
+    },
+    "npm run": {
+      "description": "package.jsonのスクリプトを実行",
+      "common_errors": [
+        "スクリプトが見つからない → package.jsonのscripts確認"
+      ]
+    }
+  }
+}
