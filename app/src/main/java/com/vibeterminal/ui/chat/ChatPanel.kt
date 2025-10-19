@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -439,10 +440,10 @@ private fun ChatInputArea(
                 value = value,
                 onValueChange = onValueChange,
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("メッセージを入力...", fontSize = 10.sp) },
+                placeholder = { Text("メッセージを入力...", style = TextStyle(fontSize = 10.sp)) },
                 maxLines = 3,
                 enabled = enabled,
-                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 10.sp)
+                textStyle = TextStyle(fontSize = 10.sp)
             )
 
             // Send button
