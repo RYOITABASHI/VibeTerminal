@@ -105,16 +105,6 @@ fun ChatPanel(
 
         Divider()
 
-        // Quick actions
-        if (currentSession.messages.isEmpty()) {
-            QuickActionsBar(
-                onActionClick = { action ->
-                    inputText = action.prompt
-                }
-            )
-            Divider()
-        }
-
         // Input area
         ChatInputArea(
             value = inputText,
@@ -202,49 +192,32 @@ private fun ChatWelcome(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
             Icons.Default.ChatBubble,
             contentDescription = null,
-            modifier = Modifier.size(64.dp),
+            modifier = Modifier.size(32.dp),
             tint = MaterialTheme.colorScheme.primary
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        Text(
-            "AI アシスタント",
-            style = MaterialTheme.typography.headlineSmall
         )
 
         Spacer(Modifier.height(8.dp))
 
         Text(
+            "AI アシスタント",
+            style = MaterialTheme.typography.labelLarge.copy(fontSize = 12.sp)
+        )
+
+        Spacer(Modifier.height(4.dp))
+
+        Text(
             "コードやエラーについて\n何でも聞いてください",
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
-
-        Spacer(Modifier.height(24.dp))
-
-        Text(
-            "よく使う機能:",
-            style = MaterialTheme.typography.titleSmall
-        )
-
-        Spacer(Modifier.height(12.dp))
-
-        QuickActions.ALL.take(3).forEach { action ->
-            QuickActionButton(
-                action = action,
-                onClick = { onQuickAction(action) }
-            )
-            Spacer(Modifier.height(8.dp))
-        }
     }
 }
 
