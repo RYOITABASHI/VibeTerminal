@@ -98,7 +98,7 @@ fun TerminalView(
 
     Column(
         modifier = modifier
-            .background(Color(0xFF1E1E1E))
+            .background(Color(0xFF000000))
             .padding(8.dp)
     ) {
         // Terminal output (scrollable)
@@ -140,7 +140,7 @@ fun TerminalView(
                 onValueChange = { inputText = it },
                 modifier = Modifier
                     .weight(1f)
-                    .background(Color(0xFF252526))
+                    .background(Color(0xFF000000))
                     .padding(8.dp),
                 textStyle = androidx.compose.ui.text.TextStyle(
                     fontFamily = FontFamily.Monospace,

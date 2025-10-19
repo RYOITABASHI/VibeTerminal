@@ -37,30 +37,7 @@ fun VibeTerminalApp() {
     val isExpandedScreen = windowSizeClass?.widthSizeClass == WindowWidthSizeClass.Expanded
 
     Scaffold(
-        bottomBar = {
-            if (!isExpandedScreen) {
-                NavigationBar {
-                    listOf(Screen.Terminal, Screen.Settings).forEach { screen ->
-                        NavigationBarItem(
-                            icon = { Icon(screen.icon, contentDescription = screen.title) },
-                            label = { Text(screen.title) },
-                            selected = currentRoute == screen.route,
-                            onClick = {
-                                if (currentRoute != screen.route) {
-                                    navController.navigate(screen.route) {
-                                        popUpTo(navController.graph.startDestinationId) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                }
-                            }
-                        )
-                    }
-                }
-            }
-        }
+        // Bottom bar removed - using left sidebar only
     ) { paddingValues ->
         Row(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             // Navigation rail for expanded screens (Z Fold6 unfolded)

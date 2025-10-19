@@ -38,7 +38,7 @@ fun VSCodeLayout(
     var showPopup by remember { mutableStateOf<MenuSection?>(null) }
 
     Row(modifier = modifier.fillMaxSize()) {
-        // Left sidebar - Menu bar (10%)
+        // Left sidebar - Menu bar (compact)
         MenuSidebar(
             selectedMenu = selectedMenu,
             onMenuSelected = { menu ->
@@ -52,7 +52,7 @@ fun VSCodeLayout(
             },
             modifier = Modifier
                 .fillMaxHeight()
-                .width(60.dp)
+                .width(36.dp)
         )
 
         // Center - Terminal (70%)
@@ -112,8 +112,8 @@ fun MenuSidebar(
 ) {
     Column(
         modifier = modifier
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(vertical = 8.dp),
+            .background(Color(0xFF000000))
+            .padding(vertical = 8.dp, horizontal = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
@@ -139,7 +139,7 @@ fun MenuSidebar(
 }
 
 /**
- * Menu button
+ * Menu button (icon only, compact)
  */
 @Composable
 fun MenuButton(
@@ -148,33 +148,23 @@ fun MenuButton(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    Column(
+    Box(
         modifier = Modifier
-            .width(56.dp)
+            .size(32.dp)
             .clickable(onClick = onClick)
             .background(
-                if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                else Color.Transparent
+                if (isSelected) Color(0xFF1A1A1A)
+                else Color.Transparent,
+                shape = MaterialTheme.shapes.small
             )
-            .padding(vertical = 8.dp, horizontal = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(6.dp),
+        contentAlignment = Alignment.Center
     ) {
         Icon(
             imageVector = icon,
             contentDescription = label,
-            modifier = Modifier.size(28.dp),
-            tint = if (isSelected)
-                MaterialTheme.colorScheme.onPrimaryContainer
-            else
-                MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = if (isSelected)
-                MaterialTheme.colorScheme.onPrimaryContainer
-            else
-                MaterialTheme.colorScheme.onSurfaceVariant
+            modifier = Modifier.size(18.dp),
+            tint = if (isSelected) Color(0xFF4EC9B0) else Color(0xFF808080)
         )
     }
 }

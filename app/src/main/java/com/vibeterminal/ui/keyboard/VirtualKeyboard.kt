@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * Virtual keyboard for terminal with special keys
+ * Virtual keyboard for terminal with special keys (compact, collapsible)
  * Solves the #1 Termux usability issue: missing Ctrl, Alt, Esc keys
  */
 @Composable
@@ -23,96 +23,117 @@ fun VirtualKeyboard(
     onSpecialKey: (SpecialKey) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var isExpanded by remember { mutableStateOf(false) }
     var isCtrlPressed by remember { mutableStateOf(false) }
     var isAltPressed by remember { mutableStateOf(false) }
     var isShiftPressed by remember { mutableStateOf(false) }
     var showNumPad by remember { mutableStateOf(false) }
 
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(Color(0xFF000000))
     ) {
-        Column(
-            modifier = Modifier.padding(8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+        // Compact header bar (always visible)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFF000000))
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Header: Quick info
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // Toggle button
+            IconButton(
+                onClick = { isExpanded = !isExpanded },
+                modifier = Modifier.size(28.dp)
             ) {
-                Text(
-                    "特殊キー",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                Icon(
+                    if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                    contentDescription = if (isExpanded) "折りたたむ" else "展開",
+                    modifier = Modifier.size(18.dp),
+                    tint = Color(0xFF4EC9B0)
                 )
+            }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    if (isCtrlPressed) ModifierBadge("CTRL")
-                    if (isAltPressed) ModifierBadge("ALT")
-                    if (isShiftPressed) ModifierBadge("SHIFT")
-                }
+            // Compact key row (always visible)
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                CompactKeyButton("ESC") { onSpecialKey(SpecialKey.ESC) }
+                CompactKeyButton("TAB") { onSpecialKey(SpecialKey.TAB) }
+                CompactKeyButton("C^C") { onSpecialKey(SpecialKey.CTRL_C) }
+                CompactKeyButton("C^D") { onSpecialKey(SpecialKey.CTRL_D) }
+            }
 
+            // NumPad toggle
+            if (isExpanded) {
                 IconButton(
                     onClick = { showNumPad = !showNumPad },
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(28.dp)
                 ) {
                     Icon(
                         if (showNumPad) Icons.Default.KeyboardAlt else Icons.Default.Dialpad,
-                        contentDescription = "数字パッド切り替え",
-                        modifier = Modifier.size(20.dp)
+                        contentDescription = "数字パッド",
+                        modifier = Modifier.size(16.dp),
+                        tint = Color(0xFF808080)
                     )
                 }
             }
+        }
 
-            Divider()
+        // Expanded keyboard (collapsible)
+        if (isExpanded) {
+            Divider(color = Color(0xFF1A1A1A))
 
-            if (showNumPad) {
-                // Number pad layout
-                NumericKeypad(
-                    onKeyPress = { key ->
-                        handleKeyPress(key, isCtrlPressed, isAltPressed, isShiftPressed, onKeyPress, onSpecialKey)
-                        resetModifiers(
-                            ctrl = { isCtrlPressed = false },
-                            alt = { isAltPressed = false },
-                            shift = { isShiftPressed = false }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 90.dp)
+                    .padding(4.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                if (showNumPad) {
+                    // Number pad layout
+                    NumericKeypad(
+                        onKeyPress = { key ->
+                            handleKeyPress(key, isCtrlPressed, isAltPressed, isShiftPressed, onKeyPress, onSpecialKey)
+                            resetModifiers(
+                                ctrl = { isCtrlPressed = false },
+                                alt = { isAltPressed = false },
+                                shift = { isShiftPressed = false }
+                            )
+                        }
+                    )
+                } else {
+                    // Row 1: Modifier keys (compact)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        ModifierKey(
+                            label = "CTRL",
+                            isPressed = isCtrlPressed,
+                            onClick = { isCtrlPressed = !isCtrlPressed },
+                            modifier = Modifier.weight(1f)
+                        )
+                        ModifierKey(
+                            label = "ALT",
+                            isPressed = isAltPressed,
+                            onClick = { isAltPressed = !isAltPressed },
+                            modifier = Modifier.weight(1f)
+                        )
+                        ModifierKey(
+                            label = "SHIFT",
+                            isPressed = isShiftPressed,
+                            onClick = { isShiftPressed = !isShiftPressed },
+                            modifier = Modifier.weight(1f)
                         )
                     }
-                )
-            } else {
-                // Row 1: Modifier keys
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    ModifierKey(
-                        label = "CTRL",
-                        isPressed = isCtrlPressed,
-                        onClick = { isCtrlPressed = !isCtrlPressed },
-                        modifier = Modifier.weight(1f)
-                    )
-                    ModifierKey(
-                        label = "ALT",
-                        isPressed = isAltPressed,
-                        onClick = { isAltPressed = !isAltPressed },
-                        modifier = Modifier.weight(1f)
-                    )
-                    ModifierKey(
-                        label = "SHIFT",
-                        isPressed = isShiftPressed,
-                        onClick = { isShiftPressed = !isShiftPressed },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
 
-                // Row 2: Special function keys
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
+                    // Row 2: Special function keys (compact)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
                     SpecialKeyButton(
                         label = "ESC",
                         onClick = {
@@ -151,120 +172,53 @@ fun VirtualKeyboard(
                     )
                 }
 
-                // Row 3: Arrow keys
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Spacer(Modifier.weight(1f))
+                    // Row 3: Arrow keys (compact horizontal layout)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        ArrowKeyButton(icon = Icons.Default.KeyboardArrowLeft,
+                            onClick = { onSpecialKey(SpecialKey.ARROW_LEFT); resetModifiers({ isCtrlPressed = false }, { isAltPressed = false }, { isShiftPressed = false }) })
+                        ArrowKeyButton(icon = Icons.Default.KeyboardArrowUp,
+                            onClick = { onSpecialKey(SpecialKey.ARROW_UP); resetModifiers({ isCtrlPressed = false }, { isAltPressed = false }, { isShiftPressed = false }) })
+                        ArrowKeyButton(icon = Icons.Default.KeyboardArrowDown,
+                            onClick = { onSpecialKey(SpecialKey.ARROW_DOWN); resetModifiers({ isCtrlPressed = false }, { isAltPressed = false }, { isShiftPressed = false }) })
+                        ArrowKeyButton(icon = Icons.Default.KeyboardArrowRight,
+                            onClick = { onSpecialKey(SpecialKey.ARROW_RIGHT); resetModifiers({ isCtrlPressed = false }, { isAltPressed = false }, { isShiftPressed = false }) })
+                    }
 
-                    ArrowKeyButton(
-                        icon = Icons.Default.KeyboardArrowUp,
-                        onClick = {
-                            onSpecialKey(SpecialKey.ARROW_UP)
-                            resetModifiers(
-                                ctrl = { isCtrlPressed = false },
-                                alt = { isAltPressed = false },
-                                shift = { isShiftPressed = false }
-                            )
-                        }
-                    )
-
-                    Spacer(Modifier.weight(1f))
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    ArrowKeyButton(
-                        icon = Icons.Default.KeyboardArrowLeft,
-                        onClick = {
-                            onSpecialKey(SpecialKey.ARROW_LEFT)
-                            resetModifiers(
-                                ctrl = { isCtrlPressed = false },
-                                alt = { isAltPressed = false },
-                                shift = { isShiftPressed = false }
-                            )
-                        }
-                    )
-                    ArrowKeyButton(
-                        icon = Icons.Default.KeyboardArrowDown,
-                        onClick = {
-                            onSpecialKey(SpecialKey.ARROW_DOWN)
-                            resetModifiers(
-                                ctrl = { isCtrlPressed = false },
-                                alt = { isAltPressed = false },
-                                shift = { isShiftPressed = false }
-                            )
-                        }
-                    )
-                    ArrowKeyButton(
-                        icon = Icons.Default.KeyboardArrowRight,
-                        onClick = {
-                            onSpecialKey(SpecialKey.ARROW_RIGHT)
-                            resetModifiers(
-                                ctrl = { isCtrlPressed = false },
-                                alt = { isAltPressed = false },
-                                shift = { isShiftPressed = false }
-                            )
-                        }
-                    )
-                }
-
-                // Row 4: Common shortcuts
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    ShortcutButton(
-                        label = "Ctrl+C",
-                        subtitle = "中断",
-                        onClick = { onSpecialKey(SpecialKey.CTRL_C) },
-                        modifier = Modifier.weight(1f)
-                    )
-                    ShortcutButton(
-                        label = "Ctrl+D",
-                        subtitle = "EOF",
-                        onClick = { onSpecialKey(SpecialKey.CTRL_D) },
-                        modifier = Modifier.weight(1f)
-                    )
-                    ShortcutButton(
-                        label = "Ctrl+Z",
-                        subtitle = "停止",
-                        onClick = { onSpecialKey(SpecialKey.CTRL_Z) },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                // Row 5: Other useful keys
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    SpecialKeyButton(
-                        label = "|",
-                        onClick = { onKeyPress("|") },
-                        modifier = Modifier.weight(1f)
-                    )
-                    SpecialKeyButton(
-                        label = "~",
-                        onClick = { onKeyPress("~") },
-                        modifier = Modifier.weight(1f)
-                    )
-                    SpecialKeyButton(
-                        label = "/",
-                        onClick = { onKeyPress("/") },
-                        modifier = Modifier.weight(1f)
-                    )
-                    SpecialKeyButton(
-                        label = "-",
-                        onClick = { onKeyPress("-") },
-                        modifier = Modifier.weight(1f)
-                    )
+                    // Row 4: Special characters (compact)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        SpecialKeyButton(label = "|", onClick = { onKeyPress("|") }, modifier = Modifier.weight(1f))
+                        SpecialKeyButton(label = "~", onClick = { onKeyPress("~") }, modifier = Modifier.weight(1f))
+                        SpecialKeyButton(label = "/", onClick = { onKeyPress("/") }, modifier = Modifier.weight(1f))
+                        SpecialKeyButton(label = "-", onClick = { onKeyPress("-") }, modifier = Modifier.weight(1f))
+                    }
                 }
             }
         }
+    }
+}
+
+// Compact key button for header bar
+@Composable
+private fun CompactKeyButton(label: String, onClick: () -> Unit) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = Modifier
+            .height(24.dp)
+            .widthIn(min = 40.dp),
+        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = Color(0xFF0A0A0A),
+            contentColor = Color(0xFF808080)
+        ),
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFF3A3A3A))
+    ) {
+        Text(label, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
     }
 }
 
@@ -351,23 +305,14 @@ private fun ModifierKey(
 ) {
     Button(
         onClick = onClick,
-        modifier = modifier.height(44.dp),
+        modifier = modifier.height(24.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (isPressed)
-                MaterialTheme.colorScheme.primary
-            else
-                MaterialTheme.colorScheme.secondaryContainer,
-            contentColor = if (isPressed)
-                MaterialTheme.colorScheme.onPrimary
-            else
-                MaterialTheme.colorScheme.onSecondaryContainer
-        )
+            containerColor = if (isPressed) Color(0xFF4EC9B0) else Color(0xFF0A0A0A),
+            contentColor = if (isPressed) Color(0xFF000000) else Color(0xFF808080)
+        ),
+        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
     ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelLarge,
-            fontFamily = FontFamily.Monospace
-        )
+        Text(label, style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, fontSize = 9.sp)
     }
 }
 
@@ -379,13 +324,15 @@ private fun SpecialKeyButton(
 ) {
     OutlinedButton(
         onClick = onClick,
-        modifier = modifier.height(44.dp)
+        modifier = modifier.height(24.dp),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = Color(0xFF0A0A0A),
+            contentColor = Color(0xFF808080)
+        ),
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFF3A3A3A)),
+        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
     ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelLarge,
-            fontFamily = FontFamily.Monospace
-        )
+        Text(label, style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, fontSize = 9.sp)
     }
 }
 
@@ -396,10 +343,15 @@ private fun ArrowKeyButton(
 ) {
     OutlinedButton(
         onClick = onClick,
-        modifier = Modifier.size(44.dp),
-        contentPadding = PaddingValues(0.dp)
+        modifier = Modifier.size(24.dp),
+        contentPadding = PaddingValues(0.dp),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = Color(0xFF0A0A0A),
+            contentColor = Color(0xFF808080)
+        ),
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFF3A3A3A))
     ) {
-        Icon(icon, contentDescription = null)
+        Icon(icon, contentDescription = null, modifier = Modifier.size(12.dp))
     }
 }
 

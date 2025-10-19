@@ -32,16 +32,16 @@ private val DarkColorScheme = darkColorScheme(
     errorContainer = Color(0xFF93000A),
     onErrorContainer = Color(0xFFFFDAD6),
 
-    background = Color(0xFF0D1117),  // Dark terminal background
+    background = Color(0xFF000000),  // Pure black background
     onBackground = Color(0xFFE3E2E6),
 
-    surface = Color(0xFF161B22),     // Slightly lighter than background
+    surface = Color(0xFF000000),     // Pure black surface
     onSurface = Color(0xFFC9D1D9),
 
-    surfaceVariant = Color(0xFF21262D),
+    surfaceVariant = Color(0xFF0A0A0A),
     onSurfaceVariant = Color(0xFF8B949E),
 
-    outline = Color(0xFF30363D)
+    outline = Color(0xFF1A1A1A)
 )
 
 // Light theme colors (for readability in bright environments)

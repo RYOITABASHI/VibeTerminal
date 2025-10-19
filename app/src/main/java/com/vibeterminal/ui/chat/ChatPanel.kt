@@ -49,7 +49,7 @@ fun ChatPanel(
     Column(
         modifier = modifier
             .fillMaxHeight()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(Color(0xFF000000))
     ) {
         // Header
         ChatHeader(
@@ -71,8 +71,8 @@ fun ChatPanel(
             LazyColumn(
                 state = listState,
                 modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                contentPadding = PaddingValues(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(currentSession.messages) { message ->
                     ChatMessageBubble(message)
@@ -82,17 +82,18 @@ fun ChatPanel(
                 if (isLoading) {
                     item {
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp
+                                modifier = Modifier.size(10.dp),
+                                strokeWidth = 1.dp,
+                                color = Color(0xFF4EC9B0)
                             )
                             Text(
                                 "考え中...",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                                color = Color(0xFF808080)
                             )
                         }
                     }
@@ -147,32 +148,49 @@ private fun ChatHeader(
     onNewChat: () -> Unit,
     onClearChat: () -> Unit
 ) {
-    TopAppBar(
-        title = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFF000000))
+            .padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                Icons.Default.ChatBubble,
+                contentDescription = null,
+                modifier = Modifier.size(12.dp),
+                tint = Color(0xFF4EC9B0)
+            )
+            Text(
+                "AI",
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                color = Color(0xFFD4D4D4)
+            )
+        }
+        Row {
+            IconButton(onClick = onNewChat, modifier = Modifier.size(24.dp)) {
                 Icon(
-                    Icons.Default.ChatBubble,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
+                    Icons.Default.Add,
+                    contentDescription = "新しいチャット",
+                    modifier = Modifier.size(12.dp),
+                    tint = Color(0xFF808080)
                 )
-                Text("AI チャット")
             }
-        },
-        actions = {
-            IconButton(onClick = onNewChat) {
-                Icon(Icons.Default.Add, contentDescription = "新しいチャット")
+            IconButton(onClick = onClearChat, modifier = Modifier.size(24.dp)) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "クリア",
+                    modifier = Modifier.size(12.dp),
+                    tint = Color(0xFF808080)
+                )
             }
-            IconButton(onClick = onClearChat) {
-                Icon(Icons.Default.Delete, contentDescription = "クリア")
-            }
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
-    )
+        }
+    }
 }
 
 @Composable
@@ -299,44 +317,39 @@ private fun ChatMessageBubble(message: ChatMessage) {
             Icon(
                 Icons.Default.SmartToy,
                 contentDescription = null,
-                modifier = Modifier.size(32.dp),
-                tint = MaterialTheme.colorScheme.primary
+                modifier = Modifier.size(14.dp),
+                tint = Color(0xFF4EC9B0)
             )
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(3.dp))
         }
 
         Column(
-            modifier = Modifier.widthIn(max = 280.dp)
+            modifier = Modifier.widthIn(max = 200.dp)
         ) {
             Surface(
-                shape = RoundedCornerShape(
-                    topStart = 16.dp,
-                    topEnd = 16.dp,
-                    bottomStart = if (isUser) 16.dp else 4.dp,
-                    bottomEnd = if (isUser) 4.dp else 16.dp
-                ),
+                shape = RoundedCornerShape(6.dp),
                 color = if (isUser)
-                    MaterialTheme.colorScheme.primaryContainer
+                    Color(0xFF1A1A1A)
                 else if (message.isError)
-                    MaterialTheme.colorScheme.errorContainer
+                    Color(0xFF2A0A0A)
                 else
-                    MaterialTheme.colorScheme.surfaceVariant
+                    Color(0xFF0A0A0A)
             ) {
-                Column(modifier = Modifier.padding(12.dp)) {
+                Column(modifier = Modifier.padding(6.dp)) {
                     Text(
                         message.content,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                         color = if (isUser)
-                            MaterialTheme.colorScheme.onPrimaryContainer
+                            Color(0xFFD4D4D4)
                         else if (message.isError)
-                            MaterialTheme.colorScheme.onErrorContainer
+                            Color(0xFFFF6B6B)
                         else
-                            MaterialTheme.colorScheme.onSurfaceVariant
+                            Color(0xFFA0A0A0)
                     )
 
                     // Show attachments
                     message.attachments.forEach { attachment ->
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(4.dp))
                         AttachmentBadge(attachment)
                     }
                 }
@@ -344,19 +357,19 @@ private fun ChatMessageBubble(message: ChatMessage) {
 
             Text(
                 formatTime(message.timestamp),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp, start = 4.dp)
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
+                color = Color(0xFF505050),
+                modifier = Modifier.padding(top = 2.dp, start = 2.dp)
             )
         }
 
         if (isUser) {
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(3.dp))
             Icon(
                 Icons.Default.Person,
                 contentDescription = null,
-                modifier = Modifier.size(32.dp),
-                tint = MaterialTheme.colorScheme.primary
+                modifier = Modifier.size(14.dp),
+                tint = Color(0xFF4EC9B0)
             )
         }
     }
@@ -402,8 +415,8 @@ private fun ChatInputArea(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(16.dp)
+            .background(Color(0xFF000000))
+            .padding(8.dp)
     ) {
         Row(
             verticalAlignment = Alignment.Bottom,
@@ -425,9 +438,10 @@ private fun ChatInputArea(
                 value = value,
                 onValueChange = onValueChange,
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("メッセージを入力...") },
-                maxLines = 4,
-                enabled = enabled
+                placeholder = { Text("メッセージを入力...", fontSize = 10.sp) },
+                maxLines = 3,
+                enabled = enabled,
+                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 10.sp)
             )
 
             // Send button
