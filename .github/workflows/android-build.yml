@@ -1,8 +1,8 @@
-name: Android CI
+name: Android CI - Build APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, android-ci ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -12,36 +12,49 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
+    - name: Checkout code
       uses: actions/checkout@v4
 
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
-        distribution: 'temurin'
         java-version: '17'
-        cache: 'gradle'
+        distribution: 'temurin'
+        cache: gradle
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
-    - name: Setup Gradle wrapper
-      run: |
-        # Create gradle wrapper if not exists
-        if [ ! -d "gradle/wrapper" ]; then
-          gradle wrapper --gradle-version 8.6
-        fi
-
-    - name: Build debug APK
+    - name: Build with Gradle
       run: ./gradlew assembleDebug --stacktrace
 
-    - name: Upload APK
+    - name: Upload Debug APK
       uses: actions/upload-artifact@v4
       with:
-        name: app-debug
-        path: app/build/outputs/apk/debug/app-debug.apk
+        name: vibeterminal-debug
+        path: app/build/outputs/apk/debug/*.apk
+        retention-days: 30
 
-    - name: Get APK info
-      run: |
-        echo "APK size: $(du -h app/build/outputs/apk/debug/app-debug.apk | cut -f1)"
-        echo "APK location: app/build/outputs/apk/debug/app-debug.apk"
+    - name: Build Release APK
+      run: ./gradlew assembleRelease --stacktrace
+      continue-on-error: true
+
+    - name: Upload Release APK
+      uses: actions/upload-artifact@v4
+      if: success()
+      with:
+        name: vibeterminal-release
+        path: app/build/outputs/apk/release/*.apk
+        retention-days: 90
+
+    - name: Run tests
+      run: ./gradlew test --stacktrace
+      continue-on-error: true
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results
+        path: app/build/test-results/
+        retention-days: 7

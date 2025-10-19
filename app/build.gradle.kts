@@ -93,8 +93,9 @@ dependencies {
     // OkHttp (for network requests)
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
-    // Termux Libraries (will be embedded)
-    // TODO: Add Termux terminal-emulator and terminal-view libraries
+    // Termux Libraries
+    implementation("com.termux:termux-shared:0.118.0")
+    implementation("com.termux:terminal-view:0.118.0")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

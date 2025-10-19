@@ -86,6 +86,16 @@ fun TerminalView(
     var inputText by remember { mutableStateOf("") }
     val context = LocalContext.current
 
+    // Optimize recomposition by tracking output changes
+    val outputState by remember(output) {
+        mutableStateOf(output)
+    }
+
+    // Auto-scroll effect when output updates
+    LaunchedEffect(output) {
+        // Future: Implement auto-scroll to bottom when output changes
+    }
+
     Column(
         modifier = modifier
             .background(Color(0xFF1E1E1E))

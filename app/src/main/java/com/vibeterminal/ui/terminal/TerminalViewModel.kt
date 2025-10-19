@@ -61,7 +61,8 @@ class TerminalViewModel : ViewModel() {
             patternsDir = patternsDir,
             llmApiKey = apiKey
         )
-        appContext = context
+        // Use Application Context to avoid memory leaks
+        appContext = context?.applicationContext
         geminiApiKey = apiKey
         useAiTranslation = useAi
     }
@@ -71,8 +72,8 @@ class TerminalViewModel : ViewModel() {
         useAiTranslation = useAi
 
         // Reinitialize translation engine with new settings
-        if (::translationEngine.isInitialized) {
-            val patternsDir = File(appContext?.filesDir, "translations")
+        if (::translationEngine.isInitialized && appContext != null) {
+            val patternsDir = File(appContext!!.filesDir, "translations")
             translationEngine = TranslationEngine(
                 patternsDir = patternsDir,
                 llmApiKey = apiKey
@@ -99,8 +100,13 @@ class TerminalViewModel : ViewModel() {
                 if (_isTranslationVisible.value) {
                     translateOutput(command, output)
                 }
+            } catch (e: SecurityException) {
+                _terminalOutput.value += "❌ Permission denied: ${e.message}\n"
+            } catch (e: java.io.IOException) {
+                _terminalOutput.value += "❌ I/O Error: ${e.message}\n"
             } catch (e: Exception) {
-                _terminalOutput.value += "Error: ${e.message}\n"
+                _terminalOutput.value += "❌ Error: ${e.javaClass.simpleName} - ${e.message}\n"
+                e.printStackTrace()
             }
         }
     }
@@ -110,13 +116,32 @@ class TerminalViewModel : ViewModel() {
      */
     private suspend fun executeShellCommand(command: String): String {
         return try {
-            val process = ProcessBuilder(*command.split(" ").toTypedArray())
+            val args = command.split(" ").toTypedArray()
+            val process = ProcessBuilder(*args)
                 .redirectErrorStream(true)
                 .start()
 
-            process.inputStream.bufferedReader().readText()
+            // Wait for process with timeout
+            val output = StringBuilder()
+            val reader = process.inputStream.bufferedReader()
+
+            var line: String?
+            while (reader.readLine().also { line = it } != null) {
+                output.append(line).append("\n")
+            }
+
+            val exitCode = process.waitFor()
+            if (exitCode != 0) {
+                output.append("\n⚠️  Exit code: $exitCode")
+            }
+
+            output.toString()
+        } catch (e: SecurityException) {
+            throw e
+        } catch (e: java.io.IOException) {
+            throw e
         } catch (e: Exception) {
-            "Command execution failed: ${e.message}"
+            "⚠️  Command execution failed: ${e.message}"
         }
     }
 
@@ -126,6 +151,10 @@ class TerminalViewModel : ViewModel() {
     private fun translateOutput(command: String, output: String) {
         viewModelScope.launch {
             try {
+                if (!::translationEngine.isInitialized) {
+                    return@launch
+                }
+
                 val result = translationEngine.translate(
                     command = command,
                     output = output,
@@ -134,6 +163,7 @@ class TerminalViewModel : ViewModel() {
                 _currentTranslation.value = result
             } catch (e: Exception) {
                 // Log error but don't crash
+                _terminalOutput.value += "\n⚠️  Translation failed: ${e.message}\n"
                 e.printStackTrace()
             }
         }

@@ -7,4 +7,41 @@
     <string name="keyboard_toggle">Toggle Keyboard</string>
     <string name="send_command">Send Command</string>
     <string name="dismiss_translation">Dismiss Translation</string>
+
+    <!-- Menu items -->
+    <string name="menu_terminal">Terminal</string>
+    <string name="menu_ai_assist">AI Assist</string>
+    <string name="menu_mcp">MCP</string>
+    <string name="menu_git">Git</string>
+    <string name="menu_keyboard">Keyboard</string>
+    <string name="menu_settings">Settings</string>
+
+    <!-- Panel titles -->
+    <string name="panel_terminal_settings">Terminal Settings</string>
+    <string name="panel_ai_assist">AI Completion</string>
+    <string name="panel_mcp_management">MCP Management</string>
+    <string name="panel_git">Git Repository</string>
+    <string name="panel_keyboard_settings">Keyboard Settings</string>
+    <string name="panel_app_settings">App Settings</string>
+
+    <!-- Descriptions -->
+    <string name="desc_terminal_settings">Font size, color scheme, encoding settings</string>
+    <string name="desc_ai_assist">Prompt templates and AI assistance features</string>
+    <string name="desc_mcp">Model Context Protocol server management</string>
+    <string name="desc_git">Git repository status and operations</string>
+    <string name="desc_keyboard">Virtual keyboard layout and shortcut settings</string>
+    <string name="desc_app_settings">General settings, themes, API key management</string>
+
+    <!-- Actions -->
+    <string name="action_get_ai_suggestions">Get AI Suggestions</string>
+    <string name="action_mcp_list">List MCP Servers</string>
+    <string name="action_git_status">Git Status</string>
+    <string name="action_git_log">Latest Commits</string>
+    <string name="action_close">Close</string>
+
+    <!-- Error messages -->
+    <string name="error_permission_denied">Permission denied</string>
+    <string name="error_io">I/O Error</string>
+    <string name="error_command_failed">Command execution failed</string>
+    <string name="error_translation_failed">Translation failed</string>
 </resources>

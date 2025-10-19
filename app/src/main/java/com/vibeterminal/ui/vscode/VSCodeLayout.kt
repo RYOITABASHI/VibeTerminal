@@ -132,8 +132,8 @@ fun MenuSidebar(
         MenuButton(
             icon = Icons.Default.Settings,
             label = "設定",
-            isSelected = false,
-            onClick = { /* TODO: Settings */ }
+            isSelected = selectedMenu == MenuSection.SETTINGS,
+            onClick = { onMenuSelected(MenuSection.SETTINGS) }
         )
     }
 }
@@ -221,22 +221,22 @@ fun PopupPanel(
             ) {
                 when (section) {
                     MenuSection.TERMINAL -> {
-                        Text("ターミナル設定")
+                        TerminalSettingsPanel()
                     }
                     MenuSection.AI_ASSIST -> {
-                        Text("AI補完プロンプト")
-                        // TODO: Add PromptTemplateScreen content
+                        AIAssistPanel(onExecuteCommand = onExecuteCommand)
                     }
                     MenuSection.MCP -> {
-                        Text("MCPサーバー管理")
-                        // TODO: Add MCPServerPanel content
+                        MCPPanel(onExecuteCommand = onExecuteCommand)
                     }
                     MenuSection.GIT -> {
-                        Text("Gitステータス")
-                        // TODO: Add GitPanel content
+                        GitPanel(onExecuteCommand = onExecuteCommand)
                     }
                     MenuSection.KEYBOARD -> {
-                        Text("仮想キーボード設定")
+                        KeyboardSettingsPanel()
+                    }
+                    MenuSection.SETTINGS -> {
+                        AppSettingsPanel()
                     }
                 }
             }
@@ -252,7 +252,105 @@ enum class MenuSection(val icon: ImageVector, val label: String) {
     AI_ASSIST(Icons.Default.AutoAwesome, "AI補完"),
     MCP(Icons.Default.Cable, "MCP"),
     GIT(Icons.Default.AccountTree, "Git"),
-    KEYBOARD(Icons.Default.Keyboard, "キーボード")
+    KEYBOARD(Icons.Default.Keyboard, "キーボード"),
+    SETTINGS(Icons.Default.Settings, "設定")
+}
+
+/**
+ * Terminal settings panel
+ */
+@Composable
+fun TerminalSettingsPanel() {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text("ターミナル設定", style = MaterialTheme.typography.titleMedium)
+        Text("フォントサイズ、カラースキーム、エンコーディングなどの設定")
+        // Placeholder for future implementation
+    }
+}
+
+/**
+ * AI Assist panel
+ */
+@Composable
+fun AIAssistPanel(onExecuteCommand: (String) -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text("AI補完", style = MaterialTheme.typography.titleMedium)
+        Text("プロンプトテンプレートとAI支援機能")
+        Button(onClick = { onExecuteCommand("ai-suggest") }) {
+            Text("AI提案を取得")
+        }
+    }
+}
+
+/**
+ * MCP panel
+ */
+@Composable
+fun MCPPanel(onExecuteCommand: (String) -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text("MCP管理", style = MaterialTheme.typography.titleMedium)
+        Text("Model Context Protocol サーバーの管理")
+        Button(onClick = { onExecuteCommand("mcp list") }) {
+            Text("MCPサーバー一覧")
+        }
+    }
+}
+
+/**
+ * Git panel
+ */
+@Composable
+fun GitPanel(onExecuteCommand: (String) -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text("Git", style = MaterialTheme.typography.titleMedium)
+        Text("Gitリポジトリの状態と操作")
+        Button(onClick = { onExecuteCommand("git status") }) {
+            Text("Git Status")
+        }
+        Button(onClick = { onExecuteCommand("git log --oneline -10") }) {
+            Text("最新コミット")
+        }
+    }
+}
+
+/**
+ * Keyboard settings panel
+ */
+@Composable
+fun KeyboardSettingsPanel() {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text("キーボード設定", style = MaterialTheme.typography.titleMedium)
+        Text("仮想キーボードのレイアウトとショートカット設定")
+    }
+}
+
+/**
+ * App settings panel
+ */
+@Composable
+fun AppSettingsPanel() {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text("アプリ設定", style = MaterialTheme.typography.titleMedium)
+        Text("全般設定、テーマ、APIキーなどの管理")
+    }
 }
 
 /**

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">VibeTerminal</string>
+    <string name="terminal_screen">ターミナル</string>
+    <string name="settings_screen">設定</string>
+    <string name="translation_toggle">翻訳を切り替え</string>
+    <string name="keyboard_toggle">キーボードを切り替え</string>
+    <string name="send_command">コマンドを送信</string>
+    <string name="dismiss_translation">翻訳を閉じる</string>
+
+    <!-- Menu items -->
+    <string name="menu_terminal">ターミナル</string>
+    <string name="menu_ai_assist">AI補完</string>
+    <string name="menu_mcp">MCP</string>
+    <string name="menu_git">Git</string>
+    <string name="menu_keyboard">キーボード</string>
+    <string name="menu_settings">設定</string>
+
+    <!-- Panel titles -->
+    <string name="panel_terminal_settings">ターミナル設定</string>
+    <string name="panel_ai_assist">AI補完</string>
+    <string name="panel_mcp_management">MCP管理</string>
+    <string name="panel_git">Gitリポジトリ</string>
+    <string name="panel_keyboard_settings">キーボード設定</string>
+    <string name="panel_app_settings">アプリ設定</string>
+
+    <!-- Descriptions -->
+    <string name="desc_terminal_settings">フォントサイズ、カラースキーム、エンコーディングなどの設定</string>
+    <string name="desc_ai_assist">プロンプトテンプレートとAI支援機能</string>
+    <string name="desc_mcp">Model Context Protocol サーバーの管理</string>
+    <string name="desc_git">Gitリポジトリの状態と操作</string>
+    <string name="desc_keyboard">仮想キーボードのレイアウトとショートカット設定</string>
+    <string name="desc_app_settings">全般設定、テーマ、APIキーなどの管理</string>
+
+    <!-- Actions -->
+    <string name="action_get_ai_suggestions">AI提案を取得</string>
+    <string name="action_mcp_list">MCPサーバー一覧</string>
+    <string name="action_git_status">Git Status</string>
+    <string name="action_git_log">最新コミット</string>
+    <string name="action_close">閉じる</string>
+
+    <!-- Error messages -->
+    <string name="error_permission_denied">権限が拒否されました</string>
+    <string name="error_io">入出力エラー</string>
+    <string name="error_command_failed">コマンドの実行に失敗しました</string>
+    <string name="error_translation_failed">翻訳に失敗しました</string>
+</resources>
