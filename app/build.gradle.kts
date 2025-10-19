@@ -93,9 +93,12 @@ dependencies {
     // OkHttp (for network requests)
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
-    // Termux Libraries
-    implementation("com.termux:termux-shared:0.118.0")
-    implementation("com.termux:terminal-view:0.118.0")
+    // Termux Libraries (via JitPack)
+    // Note: Using GitHub releases instead of JitPack due to 401 errors
+    // implementation("com.github.termux.termux-app:termux-shared:v0.118.0")
+    // implementation("com.github.termux.termux-app:terminal-view:v0.118.0")
+    // TODO: Add Termux libraries when JitPack issue is resolved
+    // For now, build without Termux terminal emulator
 
     // Testing
     testImplementation("junit:junit:4.13.2")
