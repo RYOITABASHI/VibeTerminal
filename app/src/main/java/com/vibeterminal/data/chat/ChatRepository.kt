@@ -15,8 +15,10 @@ class ChatRepository(private val chatDao: ChatDao) {
 
     suspend fun getSessionWithMessages(sessionId: String): ChatSession? {
         val session = chatDao.getSession(sessionId) ?: return null
-        val messages = chatDao.getMessagesForSessionSync(sessionId)
-        return session.copy(messages = messages)
+        val msgs = chatDao.getMessagesForSessionSync(sessionId)
+        return session.copy().apply {
+            messages = msgs
+        }
     }
 
     suspend fun insertSession(session: ChatSession) {
