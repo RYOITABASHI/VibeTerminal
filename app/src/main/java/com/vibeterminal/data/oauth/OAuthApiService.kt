@@ -142,6 +142,9 @@ interface OpenAIOAuthApiService {
  */
 interface AnthropicOAuthApiService {
 
+    @POST("device/code")
+    suspend fun getDeviceCode(@Body request: DeviceCodeRequest): DeviceCodeResponse
+
     @POST("oauth/token")
     suspend fun getToken(@Body request: OAuthTokenRequest): OAuthTokenResponse
 
