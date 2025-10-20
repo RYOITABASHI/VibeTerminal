@@ -75,19 +75,11 @@ data class ChatSession(
     val createdAt: Long = System.currentTimeMillis(),
 
     @ColumnInfo(name = "updated_at")
-    val updatedAt: Long = System.currentTimeMillis(),
-
+    val updatedAt: Long = System.currentTimeMillis()
+) {
     // For in-memory use only (not stored in DB)
     @androidx.room.Ignore
-    val messages: List<ChatMessage> = emptyList()
-) {
-    // Secondary constructor for Room
-    constructor(
-        id: String,
-        title: String,
-        createdAt: Long,
-        updatedAt: Long
-    ) : this(id, title, createdAt, updatedAt, emptyList())
+    var messages: List<ChatMessage> = emptyList()
 }
 
 /**
