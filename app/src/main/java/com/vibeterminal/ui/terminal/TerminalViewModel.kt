@@ -52,6 +52,19 @@ class TerminalViewModel : ViewModel() {
     private val _isKeyboardVisible = MutableStateFlow(true)
     val isKeyboardVisible: StateFlow<Boolean> = _isKeyboardVisible.asStateFlow()
 
+    // Search functionality
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _searchVisible = MutableStateFlow(false)
+    val searchVisible: StateFlow<Boolean> = _searchVisible.asStateFlow()
+
+    private val _searchResults = MutableStateFlow<List<SearchResult>>(emptyList())
+    val searchResults: StateFlow<List<SearchResult>> = _searchResults.asStateFlow()
+
+    private val _currentSearchIndex = MutableStateFlow(0)
+    val currentSearchIndex: StateFlow<Int> = _currentSearchIndex.asStateFlow()
+
     private var appContext: Context? = null
     private var geminiApiKey: String? = null
     private var useAiTranslation: Boolean = false
@@ -338,4 +351,72 @@ class TerminalViewModel : ViewModel() {
             else -> uri.toString()
         }
     }
+
+    // Search functionality
+    fun toggleSearch() {
+        _searchVisible.value = !_searchVisible.value
+        if (!_searchVisible.value) {
+            clearSearch()
+        }
+    }
+
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
+        performSearch(query)
+    }
+
+    private fun performSearch(query: String) {
+        if (query.isBlank()) {
+            _searchResults.value = emptyList()
+            _currentSearchIndex.value = 0
+            return
+        }
+
+        val output = _terminalOutput.value
+        val results = mutableListOf<SearchResult>()
+        var startIndex = 0
+
+        while (startIndex < output.length) {
+            val index = output.indexOf(query, startIndex, ignoreCase = true)
+            if (index == -1) break
+
+            results.add(
+                SearchResult(
+                    startIndex = index,
+                    endIndex = index + query.length,
+                    text = query
+                )
+            )
+            startIndex = index + 1
+        }
+
+        _searchResults.value = results
+        _currentSearchIndex.value = if (results.isNotEmpty()) 0 else -1
+    }
+
+    fun nextSearchResult() {
+        if (_searchResults.value.isEmpty()) return
+        _currentSearchIndex.value = (_currentSearchIndex.value + 1) % _searchResults.value.size
+    }
+
+    fun previousSearchResult() {
+        if (_searchResults.value.isEmpty()) return
+        val newIndex = _currentSearchIndex.value - 1
+        _currentSearchIndex.value = if (newIndex < 0) _searchResults.value.size - 1 else newIndex
+    }
+
+    fun clearSearch() {
+        _searchQuery.value = ""
+        _searchResults.value = emptyList()
+        _currentSearchIndex.value = 0
+    }
 }
+
+/**
+ * Search result data class
+ */
+data class SearchResult(
+    val startIndex: Int,
+    val endIndex: Int,
+    val text: String
+)
