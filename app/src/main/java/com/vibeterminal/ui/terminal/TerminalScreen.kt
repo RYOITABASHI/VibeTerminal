@@ -1,5 +1,9 @@
 package com.vibeterminal.ui.terminal
 
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -19,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vibeterminal.ui.keyboard.VirtualKeyboard
 import com.vibeterminal.ui.keyboard.SpecialKey
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,6 +60,7 @@ fun TerminalScreen(
         ) {
             // Terminal view - full screen
             TerminalView(
+                viewModel = viewModel,
                 output = terminalOutput,
                 onCommand = { command ->
                     viewModel.executeCommand(command)
@@ -77,6 +83,7 @@ fun TerminalScreen(
 
 @Composable
 fun TerminalView(
+    viewModel: TerminalViewModel,
     output: String,
     onCommand: (String) -> Unit,
     onSendInput: (String) -> Unit = {},
@@ -87,6 +94,87 @@ fun TerminalView(
 ) {
     var inputText by remember { mutableStateOf("") }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var showAttachMenu by remember { mutableStateOf(false) }
+
+    // File picker launcher
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            scope.launch {
+                try {
+                    val path = getFilePathFromUri(context, uri)
+                    // Insert file path into input text
+                    inputText = if (inputText.isNotEmpty()) {
+                        "$inputText \"$path\""
+                    } else {
+                        "\"$path\""
+                    }
+                    Toast.makeText(context, "ファイルパスを追加しました", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(context, "ファイル取得に失敗: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    // Image picker launcher
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            scope.launch {
+                try {
+                    val path = getFilePathFromUri(context, uri)
+                    // Insert image path into input text
+                    inputText = if (inputText.isNotEmpty()) {
+                        "$inputText \"$path\""
+                    } else {
+                        "\"$path\""
+                    }
+                    Toast.makeText(context, "画像パスを追加しました", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(context, "画像取得に失敗: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    // Camera launcher
+    val cameraUri by viewModel.cameraUri.collectAsState()
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success: Boolean ->
+        if (success) {
+            cameraUri?.let { uri ->
+                scope.launch {
+                    try {
+                        val path = getFilePathFromUri(context, uri)
+                        inputText = if (inputText.isNotEmpty()) {
+                            "$inputText \"$path\""
+                        } else {
+                            "\"$path\""
+                        }
+                        Toast.makeText(context, "写真パスを追加しました", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "写真取得に失敗: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+    }
+
+    // Observe file picker trigger
+    val filePickerTrigger by viewModel.filePickerTrigger.collectAsState()
+    LaunchedEffect(filePickerTrigger) {
+        when (filePickerTrigger) {
+            FilePickerType.FILE -> filePickerLauncher.launch("*/*")
+            FilePickerType.IMAGE -> imagePickerLauncher.launch("image/*")
+            FilePickerType.CAMERA -> cameraUri?.let { cameraLauncher.launch(it) }
+            FilePickerType.NONE -> { /* Do nothing */ }
+        }
+    }
 
     // Optimize recomposition by tracking output changes
     val outputState by remember(output) {
@@ -135,6 +223,69 @@ fun TerminalView(
                 color = Color(0xFF4EC9B0),
                 modifier = Modifier.padding(end = 4.dp)
             )
+
+            // Attach menu button
+            Box {
+                IconButton(
+                    onClick = { showAttachMenu = true },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AttachFile,
+                        contentDescription = "ファイル添付",
+                        tint = Color(0xFF4EC9B0),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = showAttachMenu,
+                    onDismissRequest = { showAttachMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("ファイル", fontSize = 12.sp) },
+                        onClick = {
+                            showAttachMenu = false
+                            viewModel.requestFilePicker()
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.InsertDriveFile,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("画像", fontSize = 12.sp) },
+                        onClick = {
+                            showAttachMenu = false
+                            viewModel.requestImagePicker()
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Image,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("カメラ", fontSize = 12.sp) },
+                        onClick = {
+                            showAttachMenu = false
+                            viewModel.requestCamera()
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.CameraAlt,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    )
+                }
+            }
 
             // Input field
             androidx.compose.foundation.text.BasicTextField(
@@ -190,6 +341,56 @@ fun TerminalView(
             )
         }
     }
+}
+
+/**
+ * Get file path from URI
+ */
+private fun getFilePathFromUri(context: android.content.Context, uri: Uri): String {
+    return when (uri.scheme) {
+        "file" -> uri.path ?: uri.toString()
+        "content" -> {
+            // For content URIs, try to copy to cache and return path
+            try {
+                val fileName = getFileName(context, uri) ?: "file_${System.currentTimeMillis()}"
+                val cacheFile = java.io.File(context.cacheDir, fileName)
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    cacheFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                cacheFile.absolutePath
+            } catch (e: Exception) {
+                uri.toString()
+            }
+        }
+        else -> uri.toString()
+    }
+}
+
+/**
+ * Get file name from URI
+ */
+private fun getFileName(context: android.content.Context, uri: Uri): String? {
+    var fileName: String? = null
+    if (uri.scheme == "content") {
+        val cursor = context.contentResolver.query(uri, null, null, null, null)
+        cursor?.use {
+            if (it.moveToFirst()) {
+                val nameIndex = it.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                if (nameIndex >= 0) {
+                    fileName = it.getString(nameIndex)
+                }
+            }
+        }
+    }
+    if (fileName == null) {
+        fileName = uri.path?.let { path ->
+            val cut = path.lastIndexOf('/')
+            if (cut != -1) path.substring(cut + 1) else path
+        }
+    }
+    return fileName
 }
 
 /**
