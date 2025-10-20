@@ -98,9 +98,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
             // Update current session locally
             _currentSession.value = _currentSession.value.copy(
-                messages = _currentSession.value.messages + userMessage,
                 updatedAt = System.currentTimeMillis()
-            )
+            ).apply {
+                messages = messages + userMessage
+            }
 
             _isLoading.value = true
 
@@ -123,9 +124,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
                 // Update current session locally
                 _currentSession.value = _currentSession.value.copy(
-                    messages = _currentSession.value.messages + assistantMessage,
                     updatedAt = System.currentTimeMillis()
-                )
+                ).apply {
+                    messages = messages + assistantMessage
+                }
 
             } catch (e: Exception) {
                 // Add error message
@@ -140,9 +142,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 repository.insertMessage(errorMessage)
 
                 // Update current session locally
-                _currentSession.value = _currentSession.value.copy(
-                    messages = _currentSession.value.messages + errorMessage
-                )
+                _currentSession.value = _currentSession.value.copy().apply {
+                    messages = messages + errorMessage
+                }
             } finally {
                 _isLoading.value = false
             }
@@ -305,9 +307,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             if (currentSessionId.isNotEmpty()) {
                 repository.clearMessagesForSession(currentSessionId)
                 _currentSession.value = _currentSession.value.copy(
-                    messages = emptyList(),
                     updatedAt = System.currentTimeMillis()
-                )
+                ).apply {
+                    messages = emptyList()
+                }
             }
         }
     }
@@ -339,8 +342,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 _currentSession.value = session
 
                 // Listen to message updates for this session
-                repository.getMessagesForSession(sessionId).collect { messages ->
-                    _currentSession.value = _currentSession.value.copy(messages = messages)
+                repository.getMessagesForSession(sessionId).collect { msgs ->
+                    _currentSession.value = _currentSession.value.copy().apply {
+                        messages = msgs
+                    }
                 }
             }
         }
