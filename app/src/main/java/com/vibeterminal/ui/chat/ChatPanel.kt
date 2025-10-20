@@ -30,10 +30,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.halilibo.richtext.commonmark.CommonmarkAstNodeParser
-import com.halilibo.richtext.commonmark.MarkdownParseOptions
-import com.halilibo.richtext.commonmark.Markdown
-import com.halilibo.richtext.ui.material3.RichText
+// Markdown imports temporarily disabled due to dependency issues
+// TODO: Re-enable markdown rendering with proper dependencies
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -675,23 +673,16 @@ private fun MarkdownText(
     color: Color,
     modifier: Modifier = Modifier
 ) {
-    val clipboardManager = LocalClipboardManager.current
-    val context = LocalContext.current
-
-    val parser = remember { CommonmarkAstNodeParser() }
-    val astNode = remember(markdown) { parser.parse(markdown) }
-
-    RichText(
-        modifier = modifier,
+    // Temporary: Using plain text rendering
+    // TODO: Re-implement markdown rendering with proper dependencies
+    Text(
+        text = markdown,
         style = MaterialTheme.typography.labelSmall.copy(
             fontSize = 10.sp,
             color = color
-        )
-    ) {
-        Markdown(
-            content = astNode
-        )
-    }
+        ),
+        modifier = modifier
+    )
 }
 
 /**

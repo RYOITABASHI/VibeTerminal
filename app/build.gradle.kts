@@ -83,9 +83,10 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.5.0")
 
     // Markdown rendering with syntax highlighting
-    implementation("com.halilibo.compose-richtext:richtext-ui:0.17.0")
-    implementation("com.halilibo.compose-richtext:richtext-ui-material3:0.17.0")
-    implementation("com.halilibo.compose-richtext:richtext-commonmark:0.17.0")
+    // TODO: Re-enable when dependency issues are resolved
+    // implementation("com.halilibo.compose-richtext:richtext-ui:0.17.0")
+    // implementation("com.halilibo.compose-richtext:richtext-ui-material3:0.17.0")
+    // implementation("com.halilibo.compose-richtext:richtext-commonmark:0.17.0")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
