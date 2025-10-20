@@ -465,6 +465,22 @@ private fun ChatInputArea(
         }
     }
 
+    // Voice input launcher
+    val voiceInputLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val spokenText = result.data?.getStringArrayListExtra(
+                android.speech.RecognizerIntent.EXTRA_RESULTS
+            )?.firstOrNull()
+
+            if (spokenText != null) {
+                onValueChange(value + spokenText)
+                Toast.makeText(context, "音声入力完了", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -541,6 +557,38 @@ private fun ChatInputArea(
                 enabled = enabled,
                 textStyle = TextStyle(fontSize = 10.sp)
             )
+
+            // Voice input button
+            IconButton(
+                onClick = {
+                    try {
+                        val intent = android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                            putExtra(
+                                android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                                android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                            )
+                            putExtra(
+                                android.speech.RecognizerIntent.EXTRA_LANGUAGE,
+                                java.util.Locale.getDefault()
+                            )
+                            putExtra(
+                                android.speech.RecognizerIntent.EXTRA_PROMPT,
+                                "話してください..."
+                            )
+                        }
+                        voiceInputLauncher.launch(intent)
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "音声認識が利用できません", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                enabled = enabled
+            ) {
+                Icon(
+                    Icons.Default.Mic,
+                    contentDescription = "音声入力",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
 
             // Send button
             IconButton(
