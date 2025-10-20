@@ -5,6 +5,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -278,13 +280,69 @@ enum class MenuSection(val icon: ImageVector, val label: String) {
  */
 @Composable
 fun TerminalSettingsPanel() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val settingsViewModel = remember {
+        com.vibeterminal.ui.settings.SettingsViewModel(context)
+    }
+    val terminalFontSize by settingsViewModel.terminalFontSize.collectAsState()
+    val colorScheme by settingsViewModel.terminalColorScheme.collectAsState()
+    val showLineNumbers by settingsViewModel.showLineNumbers.collectAsState()
+
     Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text("ターミナル設定", style = MaterialTheme.typography.titleMedium)
-        Text("フォントサイズ、カラースキーム、エンコーディングなどの設定")
-        // Placeholder for future implementation
+
+        // Font size
+        Text("フォントサイズ: ${terminalFontSize}sp", style = MaterialTheme.typography.bodySmall)
+        Slider(
+            value = terminalFontSize.toFloat(),
+            onValueChange = { settingsViewModel.setTerminalFontSize(it.toInt()) },
+            valueRange = 10f..24f,
+            steps = 13
+        )
+
+        Divider()
+
+        // Color scheme
+        Text("カラースキーム", style = MaterialTheme.typography.bodyMedium)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterChip(
+                selected = colorScheme == "dark",
+                onClick = { settingsViewModel.setTerminalColorScheme("dark") },
+                label = { Text("Dark") }
+            )
+            FilterChip(
+                selected = colorScheme == "light",
+                onClick = { settingsViewModel.setTerminalColorScheme("light") },
+                label = { Text("Light") }
+            )
+            FilterChip(
+                selected = colorScheme == "monokai",
+                onClick = { settingsViewModel.setTerminalColorScheme("monokai") },
+                label = { Text("Monokai") }
+            )
+        }
+
+        Divider()
+
+        // Show line numbers
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("行番号を表示", style = MaterialTheme.typography.bodyMedium)
+            Switch(
+                checked = showLineNumbers,
+                onCheckedChange = { settingsViewModel.setShowLineNumbers(it) }
+            )
+        }
     }
 }
 
@@ -310,14 +368,206 @@ fun AIAssistPanel(onExecuteCommand: (String) -> Unit) {
  */
 @Composable
 fun MCPPanel(onExecuteCommand: (String) -> Unit) {
+    var servers by remember { mutableStateOf(listOf("filesystem", "git", "sqlite")) }
+    var selectedServer by remember { mutableStateOf<String?>(null) }
+    var showAddDialog by remember { mutableStateOf(false) }
+
     Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("MCP管理", style = MaterialTheme.typography.titleMedium)
-        Text("Model Context Protocol サーバーの管理")
-        Button(onClick = { onExecuteCommand("mcp list") }) {
-            Text("MCPサーバー一覧")
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("MCP管理", style = MaterialTheme.typography.titleMedium)
+            IconButton(
+                onClick = { showAddDialog = true },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = "追加",
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+
+        Text(
+            "Model Context Protocol サーバー",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Divider()
+
+        // Servers list
+        Text("サーバー一覧", style = MaterialTheme.typography.bodyMedium)
+
+        servers.forEach { server ->
+            MCPServerCard(
+                serverName = server,
+                isRunning = false,
+                onClick = { selectedServer = server },
+                onStart = { onExecuteCommand("mcp start $server") },
+                onStop = { onExecuteCommand("mcp stop $server") }
+            )
+        }
+
+        if (servers.isEmpty()) {
+            Text(
+                "MCPサーバーがありません",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 16.dp)
+            )
+        }
+
+        Divider()
+
+        // Quick actions
+        Text("クイックアクション", style = MaterialTheme.typography.bodyMedium)
+
+        OutlinedButton(
+            onClick = { onExecuteCommand("mcp list") },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.List, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(4.dp))
+            Text("サーバー一覧")
+        }
+
+        OutlinedButton(
+            onClick = { onExecuteCommand("mcp status") },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(4.dp))
+            Text("ステータス確認")
+        }
+
+        // Selected server details
+        selectedServer?.let { server ->
+            Divider()
+            Text("サーバー詳細: $server", style = MaterialTheme.typography.bodyMedium)
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1A1A))
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        "利用可能なツール:",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    when (server) {
+                        "filesystem" -> {
+                            Text("• ファイル読み書き", style = MaterialTheme.typography.bodySmall)
+                            Text("• ディレクトリ操作", style = MaterialTheme.typography.bodySmall)
+                        }
+                        "git" -> {
+                            Text("• Git操作", style = MaterialTheme.typography.bodySmall)
+                            Text("• ブランチ管理", style = MaterialTheme.typography.bodySmall)
+                        }
+                        "sqlite" -> {
+                            Text("• SQLite操作", style = MaterialTheme.typography.bodySmall)
+                            Text("• クエリ実行", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Add server dialog
+    if (showAddDialog) {
+        var newServerName by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showAddDialog = false },
+            title = { Text("MCPサーバーを追加") },
+            text = {
+                OutlinedTextField(
+                    value = newServerName,
+                    onValueChange = { newServerName = it },
+                    label = { Text("サーバー名") },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (newServerName.isNotBlank()) {
+                        servers = servers + newServerName
+                        showAddDialog = false
+                        newServerName = ""
+                    }
+                }) {
+                    Text("追加")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddDialog = false }) {
+                    Text("キャンセル")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun MCPServerCard(
+    serverName: String,
+    isRunning: Boolean,
+    onClick: () -> Unit,
+    onStart: () -> Unit,
+    onStop: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1A1A))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.Cable,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = if (isRunning) Color(0xFF4EC9B0) else Color(0xFF808080)
+                )
+                Text(
+                    serverName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                )
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                IconButton(
+                    onClick = if (isRunning) onStop else onStart,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        if (isRunning) Icons.Default.Stop else Icons.Default.PlayArrow,
+                        contentDescription = if (isRunning) "停止" else "開始",
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -327,17 +577,190 @@ fun MCPPanel(onExecuteCommand: (String) -> Unit) {
  */
 @Composable
 fun GitPanel(onExecuteCommand: (String) -> Unit) {
+    var currentBranch by remember { mutableStateOf("main") }
+    var isRefreshing by remember { mutableStateOf(false) }
+
     Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("Git", style = MaterialTheme.typography.titleMedium)
-        Text("Gitリポジトリの状態と操作")
-        Button(onClick = { onExecuteCommand("git status") }) {
-            Text("Git Status")
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Git", style = MaterialTheme.typography.titleMedium)
+            IconButton(
+                onClick = {
+                    isRefreshing = true
+                    onExecuteCommand("git status")
+                },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    Icons.Default.Refresh,
+                    contentDescription = "更新",
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
-        Button(onClick = { onExecuteCommand("git log --oneline -10") }) {
-            Text("最新コミット")
+
+        // Branch info
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1A1A))
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.AccountTree,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = Color(0xFF4EC9B0)
+                    )
+                    Text(
+                        currentBranch,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                    )
+                }
+            }
+        }
+
+        Divider()
+
+        // Quick actions
+        Text("クイックアクション", style = MaterialTheme.typography.bodyMedium)
+
+        GitQuickAction(
+            icon = Icons.Default.Info,
+            label = "Status",
+            onClick = { onExecuteCommand("git status") }
+        )
+
+        GitQuickAction(
+            icon = Icons.Default.History,
+            label = "Log",
+            onClick = { onExecuteCommand("git log --oneline -10") }
+        )
+
+        GitQuickAction(
+            icon = Icons.Default.Difference,
+            label = "Diff",
+            onClick = { onExecuteCommand("git diff") }
+        )
+
+        Divider()
+
+        // Branching
+        Text("ブランチ操作", style = MaterialTheme.typography.bodyMedium)
+
+        GitQuickAction(
+            icon = Icons.Default.List,
+            label = "ブランチ一覧",
+            onClick = { onExecuteCommand("git branch -a") }
+        )
+
+        var newBranchName by remember { mutableStateOf("") }
+        var showBranchDialog by remember { mutableStateOf(false) }
+
+        OutlinedButton(
+            onClick = { showBranchDialog = true },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(4.dp))
+            Text("新規ブランチ")
+        }
+
+        // Branch dialog
+        if (showBranchDialog) {
+            AlertDialog(
+                onDismissRequest = { showBranchDialog = false },
+                title = { Text("新規ブランチ") },
+                text = {
+                    OutlinedTextField(
+                        value = newBranchName,
+                        onValueChange = { newBranchName = it },
+                        label = { Text("ブランチ名") },
+                        singleLine = true
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        if (newBranchName.isNotBlank()) {
+                            onExecuteCommand("git checkout -b $newBranchName")
+                            showBranchDialog = false
+                            newBranchName = ""
+                        }
+                    }) {
+                        Text("作成")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showBranchDialog = false }) {
+                        Text("キャンセル")
+                    }
+                }
+            )
+        }
+
+        Divider()
+
+        // Staging
+        Text("ステージング", style = MaterialTheme.typography.bodyMedium)
+
+        GitQuickAction(
+            icon = Icons.Default.Add,
+            label = "全ての変更をステージ",
+            onClick = { onExecuteCommand("git add .") }
+        )
+
+        GitQuickAction(
+            icon = Icons.Default.Check,
+            label = "Commit",
+            onClick = { onExecuteCommand("git commit -m \"Update\"") }
+        )
+
+        GitQuickAction(
+            icon = Icons.Default.Upload,
+            label = "Push",
+            onClick = { onExecuteCommand("git push") }
+        )
+
+        GitQuickAction(
+            icon = Icons.Default.Download,
+            label = "Pull",
+            onClick = { onExecuteCommand("git pull") }
+        )
+    }
+}
+
+@Composable
+private fun GitQuickAction(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Start,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(label, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
@@ -347,12 +770,60 @@ fun GitPanel(onExecuteCommand: (String) -> Unit) {
  */
 @Composable
 fun KeyboardSettingsPanel() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val settingsViewModel = remember {
+        com.vibeterminal.ui.settings.SettingsViewModel(context)
+    }
+    val keyboardHeight by settingsViewModel.keyboardHeight.collectAsState()
+
     Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text("キーボード設定", style = MaterialTheme.typography.titleMedium)
-        Text("仮想キーボードのレイアウトとショートカット設定")
+
+        // Keyboard height
+        Text("キーボード高さ: ${keyboardHeight}dp", style = MaterialTheme.typography.bodySmall)
+        Slider(
+            value = keyboardHeight.toFloat(),
+            onValueChange = { settingsViewModel.setKeyboardHeight(it.toInt()) },
+            valueRange = 60f..180f,
+            steps = 11
+        )
+
+        Divider()
+
+        // Shortcuts info
+        Text("ショートカットキー", style = MaterialTheme.typography.bodyMedium)
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            ShortcutInfo("ESC", "エスケープキー")
+            ShortcutInfo("Ctrl+C", "プロセス中断")
+            ShortcutInfo("Ctrl+D", "入力終了/ログアウト")
+            ShortcutInfo("Tab", "オートコンプリート")
+            ShortcutInfo("↑↓", "コマンド履歴")
+        }
+    }
+}
+
+@Composable
+private fun ShortcutInfo(key: String, description: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            key,
+            style = MaterialTheme.typography.bodySmall,
+            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+            color = Color(0xFF4EC9B0)
+        )
+        Text(
+            description,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -361,12 +832,170 @@ fun KeyboardSettingsPanel() {
  */
 @Composable
 fun AppSettingsPanel() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val settingsViewModel = remember {
+        com.vibeterminal.ui.settings.SettingsViewModel(context)
+    }
+    val isDarkTheme by settingsViewModel.isDarkTheme.collectAsState()
+    val translationEnabled by settingsViewModel.translationEnabled.collectAsState()
+    val useAiTranslation by settingsViewModel.useAiTranslation.collectAsState()
+    val llmApiKey by settingsViewModel.llmApiKey.collectAsState()
+    val openAiApiKey by settingsViewModel.openAiApiKey.collectAsState()
+    val openAiModel by settingsViewModel.openAiModel.collectAsState()
+
+    var showApiKeyDialog by remember { mutableStateOf(false) }
+    var showOpenAiKeyDialog by remember { mutableStateOf(false) }
+
     Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text("アプリ設定", style = MaterialTheme.typography.titleMedium)
-        Text("全般設定、テーマ、APIキーなどの管理")
+
+        // Dark theme
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("ダークテーマ", style = MaterialTheme.typography.bodyMedium)
+            Switch(
+                checked = isDarkTheme,
+                onCheckedChange = { settingsViewModel.setDarkTheme(it) }
+            )
+        }
+
+        Divider()
+
+        // Translation
+        Text("翻訳設定", style = MaterialTheme.typography.bodyMedium)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("翻訳を有効化", style = MaterialTheme.typography.bodySmall)
+            Switch(
+                checked = translationEnabled,
+                onCheckedChange = { settingsViewModel.setTranslationEnabled(it) }
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("AI翻訳を使用", style = MaterialTheme.typography.bodySmall)
+            Switch(
+                checked = useAiTranslation,
+                onCheckedChange = { settingsViewModel.setUseAiTranslation(it) }
+            )
+        }
+
+        if (useAiTranslation) {
+            OutlinedButton(
+                onClick = { showApiKeyDialog = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(if (llmApiKey.isEmpty()) "Gemini APIキーを設定" else "APIキー設定済み")
+            }
+        }
+
+        Divider()
+
+        // OpenAI Settings
+        Text("OpenAI設定", style = MaterialTheme.typography.bodyMedium)
+        OutlinedButton(
+            onClick = { showOpenAiKeyDialog = true },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(if (openAiApiKey.isEmpty()) "OpenAI APIキーを設定" else "APIキー設定済み")
+        }
+
+        Text("モデル", style = MaterialTheme.typography.bodySmall)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = openAiModel == "gpt-4o-mini",
+                onClick = { settingsViewModel.setOpenAiModel("gpt-4o-mini") },
+                label = { Text("GPT-4o mini") }
+            )
+            FilterChip(
+                selected = openAiModel == "gpt-4o",
+                onClick = { settingsViewModel.setOpenAiModel("gpt-4o") },
+                label = { Text("GPT-4o") }
+            )
+        }
+
+        Divider()
+
+        // App info
+        Text("アプリ情報", style = MaterialTheme.typography.bodyMedium)
+        Text("Version: 0.1.0-alpha", style = MaterialTheme.typography.bodySmall)
+        Text("VibeTerminal", style = MaterialTheme.typography.bodySmall)
+    }
+
+    // API Key Dialog
+    if (showApiKeyDialog) {
+        var keyInput by remember { mutableStateOf(llmApiKey) }
+        AlertDialog(
+            onDismissRequest = { showApiKeyDialog = false },
+            title = { Text("Gemini APIキー") },
+            text = {
+                OutlinedTextField(
+                    value = keyInput,
+                    onValueChange = { keyInput = it },
+                    label = { Text("APIキー") },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    settingsViewModel.setLlmApiKey(keyInput)
+                    showApiKeyDialog = false
+                }) {
+                    Text("保存")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showApiKeyDialog = false }) {
+                    Text("キャンセル")
+                }
+            }
+        )
+    }
+
+    // OpenAI Key Dialog
+    if (showOpenAiKeyDialog) {
+        var keyInput by remember { mutableStateOf(openAiApiKey) }
+        AlertDialog(
+            onDismissRequest = { showOpenAiKeyDialog = false },
+            title = { Text("OpenAI APIキー") },
+            text = {
+                OutlinedTextField(
+                    value = keyInput,
+                    onValueChange = { keyInput = it },
+                    label = { Text("APIキー") },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    settingsViewModel.setOpenAiApiKey(keyInput)
+                    showOpenAiKeyDialog = false
+                }) {
+                    Text("保存")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showOpenAiKeyDialog = false }) {
+                    Text("キャンセル")
+                }
+            }
+        )
     }
 }
 
