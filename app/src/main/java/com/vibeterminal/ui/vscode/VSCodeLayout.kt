@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -16,7 +17,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vibeterminal.ui.terminal.TerminalView
 import com.vibeterminal.ui.terminal.TerminalViewModel
@@ -26,9 +31,9 @@ import com.vibeterminal.ui.keyboard.SpecialKey
 
 /**
  * VS Code-style layout
- * Left: Menu bar (10%)
- * Center: Terminal (70%)
- * Right: Chat panel (20%)
+ * Responsive layout:
+ * - Wide screen (>600dp): Left sidebar + Terminal + Chat (horizontal)
+ * - Narrow screen (≤600dp): Left sidebar + Terminal/Chat (vertical split)
  */
 @Composable
 fun VSCodeLayout(
@@ -39,24 +44,26 @@ fun VSCodeLayout(
     val terminalOutput by terminalViewModel.terminalOutput.collectAsState()
     val isKeyboardVisible by terminalViewModel.isKeyboardVisible.collectAsState()
 
-    var selectedMenu by remember { mutableStateOf<MenuSection>(MenuSection.TERMINAL) }
+    var selectedMenu by remember { mutableStateOf<MenuSection?>(null) }
     var showPopup by remember { mutableStateOf<MenuSection?>(null) }
 
     // リサイズ可能な境界線用のstate
     var terminalWeight by remember { mutableStateOf(0.7f) }
+    var verticalWeight by remember { mutableStateOf(0.6f) }
+
+    // 画面幅を取得（Zfoldカバー画面対応）
+    val configuration = LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp.dp
+    val isNarrowScreen = screenWidthDp <= 600.dp
 
     Row(modifier = modifier.fillMaxSize()) {
         // Left sidebar - Menu bar (compact)
         MenuSidebar(
             selectedMenu = selectedMenu,
             onMenuSelected = { menu ->
-                if (menu == selectedMenu) {
-                    // Toggle popup
-                    showPopup = if (showPopup == menu) null else menu
-                } else {
-                    selectedMenu = menu
-                    showPopup = null
-                }
+                // ワンタップで設定画面を開く
+                selectedMenu = menu
+                showPopup = menu
             },
             modifier = Modifier
                 .fillMaxHeight()
@@ -67,66 +74,118 @@ fun VSCodeLayout(
                 )
         )
 
-        // Center - Terminal
-        Box(
-            modifier = Modifier
-                .weight(terminalWeight)
-                .fillMaxHeight()
-                .border(
-                    width = 1.dp,
-                    color = Color(0xFF1A1A1A)
-                )
-        ) {
-            TerminalView(
-                output = terminalOutput,
-                onCommand = { terminalViewModel.executeCommand(it) },
-                isKeyboardVisible = isKeyboardVisible,
-                onSpecialKey = { key -> handleSpecialKey(key, terminalViewModel) },
-                onKeyPress = { terminalViewModel.sendSpecialKey(it) },
-                modifier = Modifier.fillMaxSize()
-            )
-
-            // Popup panels
-            showPopup?.let { popup ->
-                PopupPanel(
-                    section = popup,
-                    onDismiss = { showPopup = null },
-                    onExecuteCommand = { terminalViewModel.executeCommand(it) },
+        // Main content area - レイアウトを画面幅に応じて切り替え
+        if (isNarrowScreen) {
+            // 狭い画面（カバー画面）: 上下分割レイアウト
+            Column(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .weight(1f)
+            ) {
+                // Terminal (上部)
+                Box(
                     modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(start = 60.dp)
-                        .width(300.dp)
-                        .fillMaxHeight()
+                        .weight(verticalWeight)
+                        .fillMaxWidth()
+                        .border(
+                            width = 1.dp,
+                            color = Color(0xFF1A1A1A)
+                        )
+                ) {
+                    TerminalView(
+                        output = terminalOutput,
+                        onCommand = { terminalViewModel.executeCommand(it) },
+                        isKeyboardVisible = isKeyboardVisible,
+                        onSpecialKey = { key -> handleSpecialKey(key, terminalViewModel) },
+                        onKeyPress = { terminalViewModel.sendSpecialKey(it) },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                // リサイズ可能な境界線（垂直方向）
+                VerticalResizableDivider(
+                    onDrag = { delta ->
+                        val newWeight = (verticalWeight + delta * 0.001f).coerceIn(0.3f, 0.8f)
+                        verticalWeight = newWeight
+                    }
+                )
+
+                // Chat panel (下部)
+                Box(
+                    modifier = Modifier
+                        .weight(1f - verticalWeight)
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface)
+                        .border(
+                            width = 1.dp,
+                            color = Color(0xFF1A1A1A)
+                        )
+                ) {
+                    ChatPanel(
+                        viewModel = chatViewModel,
+                        onAttachTerminalOutput = { terminalOutput.takeLast(500) },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+        } else {
+            // 広い画面（メイン画面）: 左右分割レイアウト
+            // Center - Terminal
+            Box(
+                modifier = Modifier
+                    .weight(terminalWeight)
+                    .fillMaxHeight()
+                    .border(
+                        width = 1.dp,
+                        color = Color(0xFF1A1A1A)
+                    )
+            ) {
+                TerminalView(
+                    output = terminalOutput,
+                    onCommand = { terminalViewModel.executeCommand(it) },
+                    isKeyboardVisible = isKeyboardVisible,
+                    onSpecialKey = { key -> handleSpecialKey(key, terminalViewModel) },
+                    onKeyPress = { terminalViewModel.sendSpecialKey(it) },
+                    modifier = Modifier.fillMaxSize()
                 )
             }
-        }
 
-        // リサイズ可能な境界線
-        ResizableDivider(
-            onDrag = { delta ->
-                // ドラッグ量に応じてweightを調整（0.3～0.8の範囲）
-                val newWeight = (terminalWeight + delta * 0.001f).coerceIn(0.3f, 0.8f)
-                terminalWeight = newWeight
-            }
-        )
-
-        // Right - Chat panel
-        Box(
-            modifier = Modifier
-                .weight(1f - terminalWeight)
-                .fillMaxHeight()
-                .background(MaterialTheme.colorScheme.surface)
-                .border(
-                    width = 1.dp,
-                    color = Color(0xFF1A1A1A)
-                )
-        ) {
-            ChatPanel(
-                viewModel = chatViewModel,
-                onAttachTerminalOutput = { terminalOutput.takeLast(500) },
-                modifier = Modifier.fillMaxSize()
+            // リサイズ可能な境界線（水平方向）
+            HorizontalResizableDivider(
+                onDrag = { delta ->
+                    val newWeight = (terminalWeight + delta * 0.001f).coerceIn(0.3f, 0.8f)
+                    terminalWeight = newWeight
+                }
             )
+
+            // Right - Chat panel
+            Box(
+                modifier = Modifier
+                    .weight(1f - terminalWeight)
+                    .fillMaxHeight()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(
+                        width = 1.dp,
+                        color = Color(0xFF1A1A1A)
+                    )
+            ) {
+                ChatPanel(
+                    viewModel = chatViewModel,
+                    onAttachTerminalOutput = { terminalOutput.takeLast(500) },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         }
+    }
+
+    // 設定パネルをダイアログで表示（全画面対応）
+    showPopup?.let { popup ->
+        SettingsDialog(
+            section = popup,
+            onDismiss = { showPopup = null },
+            onExecuteCommand = { terminalViewModel.executeCommand(it) },
+            isNarrowScreen = isNarrowScreen
+        )
     }
 }
 
@@ -135,7 +194,7 @@ fun VSCodeLayout(
  */
 @Composable
 fun MenuSidebar(
-    selectedMenu: MenuSection,
+    selectedMenu: MenuSection?,
     onMenuSelected: (MenuSection) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -199,63 +258,73 @@ fun MenuButton(
 }
 
 /**
- * Popup panel for menu features
+ * Settings dialog for menu features (全画面対応)
  */
 @Composable
-fun PopupPanel(
+fun SettingsDialog(
     section: MenuSection,
     onDismiss: () -> Unit,
     onExecuteCommand: (String) -> Unit,
-    modifier: Modifier = Modifier
+    isNarrowScreen: Boolean
 ) {
-    Card(
-        modifier = modifier,
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false // フルスクリーン対応
+        )
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Header
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = section.label,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                IconButton(onClick = onDismiss) {
-                    Icon(Icons.Default.Close, contentDescription = "閉じる")
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(if (isNarrowScreen) 8.dp else 40.dp),
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Header
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = section.label,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = "閉じる")
+                    }
                 }
-            }
 
-            Divider()
+                Divider()
 
-            // Content based on section
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-            ) {
-                when (section) {
-                    MenuSection.TERMINAL -> {
-                        TerminalSettingsPanel()
-                    }
-                    MenuSection.AI_ASSIST -> {
-                        AIAssistPanel(onExecuteCommand = onExecuteCommand)
-                    }
-                    MenuSection.MCP -> {
-                        MCPPanel(onExecuteCommand = onExecuteCommand)
-                    }
-                    MenuSection.GIT -> {
-                        GitPanel(onExecuteCommand = onExecuteCommand)
-                    }
-                    MenuSection.KEYBOARD -> {
-                        KeyboardSettingsPanel()
-                    }
-                    MenuSection.SETTINGS -> {
-                        AppSettingsPanel()
+                // Content based on section
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                ) {
+                    when (section) {
+                        MenuSection.TERMINAL -> {
+                            TerminalSettingsPanel()
+                        }
+                        MenuSection.AI_ASSIST -> {
+                            AIAssistPanel(onExecuteCommand = onExecuteCommand)
+                        }
+                        MenuSection.MCP -> {
+                            MCPPanel(onExecuteCommand = onExecuteCommand)
+                        }
+                        MenuSection.GIT -> {
+                            GitPanel(onExecuteCommand = onExecuteCommand)
+                        }
+                        MenuSection.KEYBOARD -> {
+                            KeyboardSettingsPanel()
+                        }
+                        MenuSection.SETTINGS -> {
+                            AppSettingsPanel()
+                        }
                     }
                 }
             }
@@ -909,6 +978,41 @@ fun AppSettingsPanel() {
 
         // OpenAI Settings
         Text("OpenAI設定", style = MaterialTheme.typography.bodyMedium)
+
+        // API認証に関する説明カード
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF1A2A3A))
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Info,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = Color(0xFF4EC9B0)
+                    )
+                    Text(
+                        "API認証について",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF4EC9B0)
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "OpenAI APIは APIキー認証が必須です。ChatGPTのサブスクアカウントとは別の課金体系で、従量課金の契約が必要です。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 10.sp
+                )
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
         OutlinedButton(
             onClick = { showOpenAiKeyDialog = true },
             modifier = Modifier.fillMaxWidth()
@@ -1022,10 +1126,10 @@ private fun handleSpecialKey(key: SpecialKey, viewModel: TerminalViewModel) {
 }
 
 /**
- * リサイズ可能な境界線
+ * リサイズ可能な境界線（水平方向）
  */
 @Composable
-private fun ResizableDivider(
+private fun HorizontalResizableDivider(
     onDrag: (Float) -> Unit
 ) {
     Box(
@@ -1045,6 +1149,36 @@ private fun ResizableDivider(
             modifier = Modifier
                 .width(2.dp)
                 .fillMaxHeight()
+                .background(Color(0xFF4EC9B0))
+                .align(Alignment.Center)
+        )
+    }
+}
+
+/**
+ * リサイズ可能な境界線（垂直方向）
+ */
+@Composable
+private fun VerticalResizableDivider(
+    onDrag: (Float) -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .height(8.dp)
+            .fillMaxWidth()
+            .background(Color(0xFF1A1A1A))
+            .pointerInput(Unit) {
+                detectVerticalDragGestures { change, dragAmount ->
+                    change.consume()
+                    onDrag(dragAmount)
+                }
+            }
+    ) {
+        // 中央にドラッグハンドルを表示
+        Box(
+            modifier = Modifier
+                .height(2.dp)
+                .fillMaxWidth()
                 .background(Color(0xFF4EC9B0))
                 .align(Alignment.Center)
         )
