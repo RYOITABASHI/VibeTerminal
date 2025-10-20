@@ -105,6 +105,9 @@ dependencies {
     // Security (for encrypted storage)
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
+    // Error Prone Annotations (required by Tink used in security-crypto)
+    implementation("com.google.errorprone:error_prone_annotations:2.23.0")
+
     // Browser (for Custom Tabs - OAuth)
     implementation("androidx.browser:browser:1.8.0")
 
