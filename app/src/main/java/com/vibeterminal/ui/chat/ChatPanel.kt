@@ -32,7 +32,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.halilibo.richtext.commonmark.CommonmarkAstNodeParser
 import com.halilibo.richtext.commonmark.MarkdownParseOptions
-import com.halilibo.richtext.markdown.BasicMarkdown
+import com.halilibo.richtext.commonmark.Markdown
 import com.halilibo.richtext.ui.material3.RichText
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -678,6 +678,9 @@ private fun MarkdownText(
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
 
+    val parser = remember { CommonmarkAstNodeParser() }
+    val astNode = remember(markdown) { parser.parse(markdown) }
+
     RichText(
         modifier = modifier,
         style = MaterialTheme.typography.labelSmall.copy(
@@ -685,9 +688,8 @@ private fun MarkdownText(
             color = color
         )
     ) {
-        BasicMarkdown(
-            markdown,
-            // Customize code block appearance
+        Markdown(
+            content = astNode
         )
     }
 }
