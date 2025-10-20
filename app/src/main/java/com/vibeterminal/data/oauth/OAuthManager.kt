@@ -3,9 +3,11 @@ package com.vibeterminal.data.oauth
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.browser.customtabs.CustomTabsIntent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import retrofit2.HttpException
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Base64
@@ -19,9 +21,15 @@ class OAuthManager(
 ) {
 
     companion object {
+        private const val TAG = "OAuthManager"
+
         // PKCE用の状態を一時保存
         private var pendingCodeVerifier: String? = null
         private var pendingState: String? = null
+
+        // API Service instances
+        private val openAIApiService by lazy { OpenAIOAuthApiService.create() }
+        private val anthropicApiService by lazy { AnthropicOAuthApiService.create() }
     }
 
     /**
@@ -93,30 +101,40 @@ class OAuthManager(
      * 認可コードをトークンと交換
      */
     private suspend fun exchangeCodeForToken(code: String, config: OAuthConfig): OAuthToken {
-        // TODO: 実際のHTTP通信を実装
-        // ここでは仮のトークンを返す
-        // 本番実装ではRetrofitなどでPOSTリクエストを送信
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Exchanging authorization code for token")
 
-        /*
-        val requestBody = mapOf(
-            "grant_type" to "authorization_code",
-            "code" to code,
-            "redirect_uri" to config.redirectUri,
-            "client_id" to config.clientId,
-            "code_verifier" to pendingCodeVerifier
-        )
+                val request = OAuthTokenRequest(
+                    grantType = "authorization_code",
+                    code = code,
+                    redirectUri = config.redirectUri,
+                    clientId = config.clientId,
+                    codeVerifier = pendingCodeVerifier
+                )
 
-        // POST request to config.tokenEndpoint
-        */
+                val response = when (config.provider) {
+                    OAuthProvider.OPENAI -> openAIApiService.getToken(request)
+                    OAuthProvider.ANTHROPIC -> anthropicApiService.getToken(request)
+                }
 
-        // 仮実装：テスト用のトークン
-        return OAuthToken(
-            accessToken = "test_access_token_$code",
-            refreshToken = "test_refresh_token",
-            tokenType = "Bearer",
-            expiresIn = 3600,
-            scope = config.scope
-        )
+                Log.d(TAG, "Token exchange successful")
+
+                OAuthToken(
+                    accessToken = response.accessToken,
+                    refreshToken = response.refreshToken,
+                    tokenType = response.tokenType,
+                    expiresIn = response.expiresIn,
+                    scope = response.scope ?: config.scope
+                )
+            } catch (e: HttpException) {
+                Log.e(TAG, "HTTP error during token exchange: ${e.code()}", e)
+                throw Exception("認証に失敗しました: HTTP ${e.code()} - ${e.message()}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during token exchange", e)
+                throw Exception("認証中にエラーが発生しました: ${e.message}")
+            }
+        }
     }
 
     /**
@@ -125,36 +143,44 @@ class OAuthManager(
     suspend fun refreshToken(config: OAuthConfig): Result<OAuthToken> {
         return withContext(Dispatchers.IO) {
             try {
+                Log.d(TAG, "Refreshing OAuth token")
+
                 val currentToken = repository.getToken(config.provider)
-                    ?: return@withContext Result.failure(Exception("No refresh token available"))
+                    ?: return@withContext Result.failure(Exception("トークンが見つかりません"))
 
                 val refreshToken = currentToken.refreshToken
-                    ?: return@withContext Result.failure(Exception("No refresh token available"))
+                    ?: return@withContext Result.failure(Exception("リフレッシュトークンが利用できません"))
 
-                // TODO: 実際のHTTP通信を実装
-                /*
-                val requestBody = mapOf(
-                    "grant_type" to "refresh_token",
-                    "refresh_token" to refreshToken,
-                    "client_id" to config.clientId
+                val request = OAuthTokenRequest(
+                    grantType = "refresh_token",
+                    refreshToken = refreshToken,
+                    redirectUri = config.redirectUri,
+                    clientId = config.clientId
                 )
 
-                // POST request to config.tokenEndpoint
-                */
+                val response = when (config.provider) {
+                    OAuthProvider.OPENAI -> openAIApiService.getToken(request)
+                    OAuthProvider.ANTHROPIC -> anthropicApiService.getToken(request)
+                }
 
-                // 仮実装：新しいトークン
+                Log.d(TAG, "Token refresh successful")
+
                 val newToken = OAuthToken(
-                    accessToken = "refreshed_access_token",
-                    refreshToken = refreshToken,
-                    tokenType = "Bearer",
-                    expiresIn = 3600,
-                    scope = config.scope
+                    accessToken = response.accessToken,
+                    refreshToken = response.refreshToken ?: refreshToken, // Keep old refresh token if not provided
+                    tokenType = response.tokenType,
+                    expiresIn = response.expiresIn,
+                    scope = response.scope ?: config.scope
                 )
 
                 repository.saveToken(config.provider, newToken)
                 Result.success(newToken)
+            } catch (e: HttpException) {
+                Log.e(TAG, "HTTP error during token refresh: ${e.code()}", e)
+                Result.failure(Exception("トークン更新に失敗しました: HTTP ${e.code()} - ${e.message()}"))
             } catch (e: Exception) {
-                Result.failure(e)
+                Log.e(TAG, "Error during token refresh", e)
+                Result.failure(Exception("トークン更新中にエラーが発生しました: ${e.message}"))
             }
         }
     }
