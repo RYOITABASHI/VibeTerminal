@@ -36,6 +36,10 @@ class OAuthManager(
      * OAuth認証フローを開始
      */
     fun startOAuthFlow(config: OAuthConfig) {
+        Log.d(TAG, "Starting OAuth flow for provider: ${config.provider}")
+        Log.d(TAG, "Client ID: ${config.clientId}")
+        Log.d(TAG, "Redirect URI: ${config.redirectUri}")
+
         // PKCE用のcode_verifierとcode_challengeを生成
         val codeVerifier = generateCodeVerifier()
         val codeChallenge = generateCodeChallenge(codeVerifier)
@@ -56,12 +60,20 @@ class OAuthManager(
             .appendQueryParameter("code_challenge_method", "S256")
             .build()
 
+        Log.d(TAG, "Authorization URL: $authUri")
+
         // Custom Tabsでブラウザを開く
         val customTabsIntent = CustomTabsIntent.Builder()
             .setShowTitle(true)
             .build()
 
-        customTabsIntent.launchUrl(context, authUri)
+        try {
+            customTabsIntent.launchUrl(context, authUri)
+            Log.d(TAG, "Custom Tab launched successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to launch Custom Tab", e)
+            throw Exception("ブラウザを起動できませんでした: ${e.message}")
+        }
     }
 
     /**

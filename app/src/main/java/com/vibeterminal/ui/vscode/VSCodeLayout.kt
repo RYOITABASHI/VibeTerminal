@@ -1011,6 +1011,38 @@ fun AppSettingsPanel() {
             }
         }
 
+        // OAuth実験的機能の警告
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF2A1A1A))
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = Color(0xFFFFAA00)
+                    )
+                    Text(
+                        "OAuth認証は実験的機能です",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFFFAA00)
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "OpenAIの「Sign in with ChatGPT」は現在パイロット段階で、一般アプリでは制限があります。認証エラーが発生する可能性があります。安定した利用にはAPIキー方式を推奨します。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 9.sp
+                )
+            }
+        }
+
         Spacer(Modifier.height(8.dp))
 
         // OAuth認証ボタン

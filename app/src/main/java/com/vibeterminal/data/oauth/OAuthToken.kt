@@ -56,12 +56,27 @@ data class OAuthConfig(
 
 /**
  * OpenAI OAuth設定
+ *
+ * 注意: OpenAIの"Sign in with ChatGPT"は現在パイロット段階で、
+ * 公式APIドキュメントがありません。Codex CLIの実装を参考にしています。
+ *
+ * Codex CLI公式Client ID: Iv1.b507a08c87ecfe98
+ * 参照: https://github.com/openai/codex
  */
 object OpenAIOAuthConfig {
-    const val CLIENT_ID = "vibeterminal-android"
+    // Codex CLI公式Client ID（GitHub OAuth App形式）
+    const val CLIENT_ID = "Iv1.b507a08c87ecfe98"
+
+    // Androidアプリ用のDeep Link（Codex CLIはlocalhost:1455を使用）
     const val REDIRECT_URI = "vibeterminal://oauth/callback"
+
+    // OpenAI OAuth scope（推定）
     const val SCOPE = "openid profile email"
+
+    // 認証エンドポイント（auth.openai.comまたはGitHub経由の可能性）
     const val AUTHORIZATION_ENDPOINT = "https://auth.openai.com/authorize"
+
+    // トークンエンドポイント
     const val TOKEN_ENDPOINT = "https://auth.openai.com/oauth/token"
 
     fun getConfig() = OAuthConfig(
