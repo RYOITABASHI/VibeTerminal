@@ -22,12 +22,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.halilibo.richtext.commonmark.CommonmarkAstNodeParser
+import com.halilibo.richtext.commonmark.MarkdownParseOptions
+import com.halilibo.richtext.markdown.BasicMarkdown
+import com.halilibo.richtext.ui.material3.RichText
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -322,16 +328,24 @@ private fun ChatMessageBubble(message: ChatMessage) {
                     Color(0xFF0A0A0A)
             ) {
                 Column(modifier = Modifier.padding(6.dp)) {
-                    Text(
-                        message.content,
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                        color = if (isUser)
-                            Color(0xFFD4D4D4)
-                        else if (message.isError)
-                            Color(0xFFFF6B6B)
-                        else
-                            Color(0xFFA0A0A0)
-                    )
+                    // Render content with Markdown for assistant messages
+                    if (!isUser && !message.isError) {
+                        MarkdownText(
+                            markdown = message.content,
+                            color = Color(0xFFA0A0A0)
+                        )
+                    } else {
+                        Text(
+                            message.content,
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                            color = if (isUser)
+                                Color(0xFFD4D4D4)
+                            else if (message.isError)
+                                Color(0xFFFF6B6B)
+                            else
+                                Color(0xFFA0A0A0)
+                        )
+                    }
 
                     // Show attachments
                     message.attachments.forEach { attachment ->
@@ -602,4 +616,89 @@ private fun AttachmentPreview(
 
 private fun formatTime(timestamp: Long): String {
     return SimpleDateFormat("HH:mm", Locale.JAPAN).format(Date(timestamp))
+}
+
+/**
+ * Markdown text renderer with syntax highlighting
+ */
+@Composable
+private fun MarkdownText(
+    markdown: String,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
+
+    RichText(
+        modifier = modifier,
+        style = MaterialTheme.typography.labelSmall.copy(
+            fontSize = 10.sp,
+            color = color
+        )
+    ) {
+        BasicMarkdown(
+            markdown,
+            // Customize code block appearance
+        )
+    }
+}
+
+/**
+ * Code block with copy button
+ */
+@Composable
+private fun CodeBlock(
+    code: String,
+    language: String? = null
+) {
+    val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFF1E1E1E), RoundedCornerShape(4.dp))
+            .padding(8.dp)
+    ) {
+        // Header with language and copy button
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (language != null) {
+                Text(
+                    language,
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
+                    color = Color(0xFF808080)
+                )
+            }
+            IconButton(
+                onClick = {
+                    clipboardManager.setText(AnnotatedString(code))
+                    Toast.makeText(context, "コードをコピーしました", Toast.LENGTH_SHORT).show()
+                },
+                modifier = Modifier.size(20.dp)
+            ) {
+                Icon(
+                    Icons.Default.ContentCopy,
+                    contentDescription = "コピー",
+                    modifier = Modifier.size(12.dp),
+                    tint = Color(0xFF808080)
+                )
+            }
+        }
+
+        // Code content
+        Text(
+            code,
+            style = MaterialTheme.typography.bodySmall.copy(
+                fontSize = 9.sp,
+                fontFamily = FontFamily.Monospace
+            ),
+            color = Color(0xFFCCCCCC),
+            modifier = Modifier.padding(top = 4.dp)
+        )
+    }
 }
