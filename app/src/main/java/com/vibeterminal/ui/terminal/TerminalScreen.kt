@@ -1,7 +1,9 @@
 package com.vibeterminal.ui.terminal
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -141,6 +143,11 @@ fun TerminalView(
                 modifier = Modifier
                     .weight(1f)
                     .background(Color(0xFF000000))
+                    .border(
+                        width = 1.dp,
+                        color = Color(0xFF4EC9B0),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp)
+                    )
                     .padding(8.dp),
                 textStyle = androidx.compose.ui.text.TextStyle(
                     fontFamily = FontFamily.Monospace,

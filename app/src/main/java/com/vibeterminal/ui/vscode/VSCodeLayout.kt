@@ -1,7 +1,9 @@
 package com.vibeterminal.ui.vscode
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -11,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vibeterminal.ui.terminal.TerminalView
@@ -37,6 +40,9 @@ fun VSCodeLayout(
     var selectedMenu by remember { mutableStateOf<MenuSection>(MenuSection.TERMINAL) }
     var showPopup by remember { mutableStateOf<MenuSection?>(null) }
 
+    // リサイズ可能な境界線用のstate
+    var terminalWeight by remember { mutableStateOf(0.7f) }
+
     Row(modifier = modifier.fillMaxSize()) {
         // Left sidebar - Menu bar (compact)
         MenuSidebar(
@@ -53,13 +59,21 @@ fun VSCodeLayout(
             modifier = Modifier
                 .fillMaxHeight()
                 .width(36.dp)
+                .border(
+                    width = 1.dp,
+                    color = Color(0xFF1A1A1A)
+                )
         )
 
-        // Center - Terminal (70%)
+        // Center - Terminal
         Box(
             modifier = Modifier
-                .weight(0.7f)
+                .weight(terminalWeight)
                 .fillMaxHeight()
+                .border(
+                    width = 1.dp,
+                    color = Color(0xFF1A1A1A)
+                )
         ) {
             TerminalView(
                 output = terminalOutput,
@@ -85,12 +99,25 @@ fun VSCodeLayout(
             }
         }
 
-        // Right - Chat panel (20%)
+        // リサイズ可能な境界線
+        ResizableDivider(
+            onDrag = { delta ->
+                // ドラッグ量に応じてweightを調整（0.3～0.8の範囲）
+                val newWeight = (terminalWeight + delta * 0.001f).coerceIn(0.3f, 0.8f)
+                terminalWeight = newWeight
+            }
+        )
+
+        // Right - Chat panel
         Box(
             modifier = Modifier
-                .weight(0.2f)
+                .weight(1f - terminalWeight)
                 .fillMaxHeight()
                 .background(MaterialTheme.colorScheme.surface)
+                .border(
+                    width = 1.dp,
+                    color = Color(0xFF1A1A1A)
+                )
         ) {
             ChatPanel(
                 viewModel = chatViewModel,
@@ -362,5 +389,35 @@ private fun handleSpecialKey(key: SpecialKey, viewModel: TerminalViewModel) {
         SpecialKey.PAGE_DOWN -> viewModel.sendSpecialKey("\u001B[6~")
         SpecialKey.HOME -> viewModel.sendSpecialKey("\u001B[H")
         SpecialKey.END -> viewModel.sendSpecialKey("\u001B[F")
+    }
+}
+
+/**
+ * リサイズ可能な境界線
+ */
+@Composable
+private fun ResizableDivider(
+    onDrag: (Float) -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .width(8.dp)
+            .fillMaxHeight()
+            .background(Color(0xFF1A1A1A))
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures { change, dragAmount ->
+                    change.consume()
+                    onDrag(dragAmount)
+                }
+            }
+    ) {
+        // 中央にドラッグハンドルを表示
+        Box(
+            modifier = Modifier
+                .width(2.dp)
+                .fillMaxHeight()
+                .background(Color(0xFF4EC9B0))
+                .align(Alignment.Center)
+        )
     }
 }
