@@ -929,6 +929,12 @@ fun AppSettingsPanel() {
     var showApiKeyDialog by remember { mutableStateOf(false) }
     var showOpenAiKeyDialog by remember { mutableStateOf(false) }
 
+    // OAuth認証変数（Columnの外で定義）
+    val oauthRepository = remember { com.vibeterminal.data.oauth.OAuthRepository(context) }
+    val oauthManager = remember { com.vibeterminal.data.oauth.OAuthManager(context, oauthRepository) }
+    val isOAuthAuthenticated by oauthRepository.isAuthenticated.collectAsState(initial = false)
+    var showDeviceCodeDialog by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1058,12 +1064,6 @@ fun AppSettingsPanel() {
         }
 
         Spacer(Modifier.height(8.dp))
-
-        // OAuth認証ボタン
-        val oauthRepository = remember { com.vibeterminal.data.oauth.OAuthRepository(context) }
-        val oauthManager = remember { com.vibeterminal.data.oauth.OAuthManager(context, oauthRepository) }
-        val isOAuthAuthenticated by oauthRepository.isAuthenticated.collectAsState(initial = false)
-        var showDeviceCodeDialog by remember { mutableStateOf(false) }
 
         // Device Code Flow認証ボタン（推奨）
         Button(
