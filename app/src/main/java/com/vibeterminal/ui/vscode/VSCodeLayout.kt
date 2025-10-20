@@ -1,5 +1,8 @@
 package com.vibeterminal.ui.vscode
 
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -7,6 +10,7 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -17,17 +21,27 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.vibeterminal.data.oauth.DeviceCodeResponse
+import com.vibeterminal.data.oauth.OAuthManager
+import com.vibeterminal.data.oauth.OpenAIOAuthConfig
 import com.vibeterminal.ui.terminal.TerminalView
 import com.vibeterminal.ui.terminal.TerminalViewModel
 import com.vibeterminal.ui.chat.ChatPanel
 import com.vibeterminal.ui.chat.ChatViewModel
 import com.vibeterminal.ui.keyboard.SpecialKey
+import kotlinx.coroutines.launch
 
 /**
  * VS Code-style layout
@@ -1049,7 +1063,9 @@ fun AppSettingsPanel() {
         val oauthRepository = remember { com.vibeterminal.data.oauth.OAuthRepository(context) }
         val oauthManager = remember { com.vibeterminal.data.oauth.OAuthManager(context, oauthRepository) }
         val isOAuthAuthenticated by oauthRepository.isAuthenticated.collectAsState(initial = false)
+        var showDeviceCodeDialog by remember { mutableStateOf(false) }
 
+        // Device Code Flow認証ボタン（推奨）
         Button(
             onClick = {
                 if (isOAuthAuthenticated) {
@@ -1058,8 +1074,8 @@ fun AppSettingsPanel() {
                         oauthManager.logout(com.vibeterminal.data.oauth.OAuthProvider.OPENAI)
                     }
                 } else {
-                    // OAuth認証開始
-                    oauthManager.startOAuthFlow(com.vibeterminal.data.oauth.OpenAIOAuthConfig.getConfig())
+                    // Device Code Flow開始
+                    showDeviceCodeDialog = true
                 }
             },
             modifier = Modifier.fillMaxWidth(),
@@ -1070,14 +1086,32 @@ fun AppSettingsPanel() {
             }
         ) {
             Icon(
-                if (isOAuthAuthenticated) Icons.Default.CheckCircle else Icons.Default.Login,
+                if (isOAuthAuthenticated) Icons.Default.CheckCircle else Icons.Default.Devices,
                 contentDescription = null,
                 modifier = Modifier.size(18.dp)
             )
             Spacer(Modifier.width(8.dp))
             Text(
-                if (isOAuthAuthenticated) "OAuth認証済み（タップでログアウト）" else "ChatGPTアカウントでログイン"
+                if (isOAuthAuthenticated) "OAuth認証済み（タップでログアウト）" else "ChatGPTアカウントでログイン（推奨）"
             )
+        }
+
+        Text("または", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+        // 従来のOAuth Flow（実験的）
+        OutlinedButton(
+            onClick = {
+                oauthManager.startOAuthFlow(com.vibeterminal.data.oauth.OpenAIOAuthConfig.getConfig())
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(
+                Icons.Default.OpenInBrowser,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text("ブラウザで直接ログイン（実験的）")
         }
 
         Text("または", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -1177,6 +1211,290 @@ fun AppSettingsPanel() {
             }
         )
     }
+
+    // Device Code Flow Dialog
+    if (showDeviceCodeDialog) {
+        DeviceCodeAuthDialog(
+            oauthManager = oauthManager,
+            onDismiss = { showDeviceCodeDialog = false }
+        )
+    }
+}
+
+/**
+ * Device Code認証ダイアログ
+ */
+@Composable
+private fun DeviceCodeAuthDialog(
+    oauthManager: OAuthManager,
+    onDismiss: () -> Unit
+) {
+    var state by remember { mutableStateOf<DeviceCodeState>(DeviceCodeState.Loading) }
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+    val scope = rememberCoroutineScope()
+
+    // Device Code Flowを開始
+    LaunchedEffect(Unit) {
+        val config = OpenAIOAuthConfig.getConfig()
+        val result = oauthManager.startDeviceCodeFlow(config)
+
+        result.fold(
+            onSuccess = { response ->
+                state = DeviceCodeState.DisplayingCode(response)
+                // 自動的にポーリング開始
+                scope.launch {
+                    state = DeviceCodeState.Polling(response)
+                    val tokenResult = oauthManager.pollForToken(
+                        config = config,
+                        deviceCode = response.deviceCode,
+                        interval = response.interval
+                    )
+
+                    tokenResult.fold(
+                        onSuccess = {
+                            state = DeviceCodeState.Success
+                            Toast.makeText(context, "認証に成功しました", Toast.LENGTH_SHORT).show()
+                            kotlinx.coroutines.delay(1000)
+                            onDismiss()
+                        },
+                        onFailure = { error ->
+                            state = DeviceCodeState.Error(error.message ?: "認証に失敗しました")
+                        }
+                    )
+                }
+            },
+            onFailure = { error ->
+                state = DeviceCodeState.Error(error.message ?: "デバイスコードの取得に失敗しました")
+            }
+        )
+    }
+
+    AlertDialog(
+        onDismissRequest = {
+            if (state !is DeviceCodeState.Polling) {
+                onDismiss()
+            }
+        },
+        title = {
+            Text(
+                "ChatGPTアカウントでログイン",
+                style = MaterialTheme.typography.titleLarge
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                when (val currentState = state) {
+                    is DeviceCodeState.Loading -> {
+                        CircularProgressIndicator(modifier = Modifier.padding(24.dp))
+                        Text("デバイスコードを取得中...")
+                    }
+
+                    is DeviceCodeState.DisplayingCode -> {
+                        DeviceCodeContent(
+                            response = currentState.response,
+                            onCopyCode = {
+                                clipboardManager.setText(AnnotatedString(currentState.response.userCode))
+                                Toast.makeText(context, "コードをコピーしました", Toast.LENGTH_SHORT).show()
+                            },
+                            onOpenBrowser = {
+                                try {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(currentState.response.verificationUri))
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "ブラウザを開けませんでした", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        )
+                    }
+
+                    is DeviceCodeState.Polling -> {
+                        DeviceCodeContent(
+                            response = currentState.response,
+                            onCopyCode = {
+                                clipboardManager.setText(AnnotatedString(currentState.response.userCode))
+                                Toast.makeText(context, "コードをコピーしました", Toast.LENGTH_SHORT).show()
+                            },
+                            onOpenBrowser = {
+                                try {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(currentState.response.verificationUri))
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "ブラウザを開けませんでした", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                "認証を待っています...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    is DeviceCodeState.Success -> {
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = "Success",
+                            modifier = Modifier
+                                .size(64.dp)
+                                .padding(16.dp),
+                            tint = Color(0xFF4CAF50)
+                        )
+                        Text("認証に成功しました！")
+                    }
+
+                    is DeviceCodeState.Error -> {
+                        Icon(
+                            Icons.Default.Warning,
+                            contentDescription = "Error",
+                            modifier = Modifier
+                                .size(64.dp)
+                                .padding(16.dp),
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                        Text(
+                            currentState.message,
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            if (state is DeviceCodeState.Error || state is DeviceCodeState.Success) {
+                TextButton(onClick = onDismiss) {
+                    Text("閉じる")
+                }
+            }
+        },
+        dismissButton = {
+            if (state !is DeviceCodeState.Polling && state !is DeviceCodeState.Success) {
+                TextButton(onClick = onDismiss) {
+                    Text("キャンセル")
+                }
+            }
+        }
+    )
+}
+
+/**
+ * Device Code表示コンテンツ
+ */
+@Composable
+private fun DeviceCodeContent(
+    response: DeviceCodeResponse,
+    onCopyCode: () -> Unit,
+    onOpenBrowser: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            "以下の手順で認証を完了してください：",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        // Step 1
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top
+        ) {
+            Text("1. ", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+            Column {
+                Text("下のボタンでブラウザを開く", style = MaterialTheme.typography.bodyMedium)
+                Button(
+                    onClick = onOpenBrowser,
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("ブラウザで開く")
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Step 2
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top
+        ) {
+            Text("2. ", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+            Column {
+                Text("このコードを入力", style = MaterialTheme.typography.bodyMedium)
+                Surface(
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            response.userCode,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        IconButton(onClick = onCopyCode) {
+                            Icon(Icons.Default.Create, contentDescription = "Copy")
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Step 3
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top
+        ) {
+            Text("3. ", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+            Text("ChatGPTアカウントでログイン", style = MaterialTheme.typography.bodyMedium)
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            "有効期限: ${response.expiresIn / 60}分",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/**
+ * Device Code認証の状態
+ */
+private sealed class DeviceCodeState {
+    object Loading : DeviceCodeState()
+    data class DisplayingCode(val response: DeviceCodeResponse) : DeviceCodeState()
+    data class Polling(val response: DeviceCodeResponse) : DeviceCodeState()
+    object Success : DeviceCodeState()
+    data class Error(val message: String) : DeviceCodeState()
 }
 
 /**

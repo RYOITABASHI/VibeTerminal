@@ -205,6 +205,116 @@ class OAuthManager(
     }
 
     /**
+     * Device Code Flowを開始
+     */
+    suspend fun startDeviceCodeFlow(config: OAuthConfig): Result<DeviceCodeResponse> {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Starting Device Code Flow for provider: ${config.provider}")
+
+                val request = DeviceCodeRequest(
+                    clientId = config.clientId,
+                    scope = config.scope
+                )
+
+                val response = when (config.provider) {
+                    OAuthProvider.OPENAI -> openAIApiService.getDeviceCode(request)
+                    OAuthProvider.ANTHROPIC -> anthropicApiService.getDeviceCode(request)
+                }
+
+                Log.d(TAG, "Device code obtained: ${response.userCode}")
+                Log.d(TAG, "Verification URI: ${response.verificationUri}")
+
+                Result.success(response)
+            } catch (e: HttpException) {
+                Log.e(TAG, "HTTP error during device code request: ${e.code()}", e)
+                Result.failure(Exception("デバイスコード取得に失敗: HTTP ${e.code()}"))
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during device code request", e)
+                Result.failure(Exception("デバイスコード取得中にエラー: ${e.message}"))
+            }
+        }
+    }
+
+    /**
+     * Device Code Flowでトークンをポーリング取得
+     */
+    suspend fun pollForToken(
+        config: OAuthConfig,
+        deviceCode: String,
+        interval: Long = 5
+    ): Result<OAuthToken> {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Polling for token with device code")
+
+                var attempts = 0
+                val maxAttempts = 60 // 5分間（5秒 × 60回）
+
+                while (attempts < maxAttempts) {
+                    attempts++
+
+                    try {
+                        val request = OAuthTokenRequest(
+                            grantType = "urn:ietf:params:oauth:grant-type:device_code",
+                            deviceCode = deviceCode,
+                            clientId = config.clientId
+                        )
+
+                        val response = when (config.provider) {
+                            OAuthProvider.OPENAI -> openAIApiService.getToken(request)
+                            OAuthProvider.ANTHROPIC -> anthropicApiService.getToken(request)
+                        }
+
+                        Log.d(TAG, "Token obtained successfully")
+
+                        val token = OAuthToken(
+                            accessToken = response.accessToken,
+                            refreshToken = response.refreshToken,
+                            tokenType = response.tokenType,
+                            expiresIn = response.expiresIn,
+                            scope = response.scope ?: config.scope
+                        )
+
+                        repository.saveToken(config.provider, token)
+                        return@withContext Result.success(token)
+
+                    } catch (e: HttpException) {
+                        when (e.code()) {
+                            400 -> {
+                                // authorization_pending - ユーザーがまだ認証していない
+                                Log.d(TAG, "Authorization pending, retrying... (attempt $attempts)")
+                                kotlinx.coroutines.delay(interval * 1000)
+                                continue
+                            }
+                            428 -> {
+                                // slow_down - ポーリング間隔を増やす
+                                Log.d(TAG, "Slow down requested")
+                                kotlinx.coroutines.delay((interval + 5) * 1000)
+                                continue
+                            }
+                            else -> {
+                                Log.e(TAG, "HTTP error during token polling: ${e.code()}", e)
+                                return@withContext Result.failure(
+                                    Exception("トークン取得に失敗: HTTP ${e.code()}")
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // タイムアウト
+                Log.e(TAG, "Token polling timed out")
+                Result.failure(Exception("認証がタイムアウトしました"))
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during token polling", e)
+                Result.failure(Exception("トークン取得中にエラー: ${e.message}"))
+            }
+        }
+    }
+
+    /**
      * PKCE用のcode_verifierを生成
      */
     private fun generateCodeVerifier(): String {

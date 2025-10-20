@@ -10,6 +10,40 @@ import retrofit2.http.POST
 import java.util.concurrent.TimeUnit
 
 /**
+ * Device Code Request (Device Flow用)
+ */
+data class DeviceCodeRequest(
+    @SerializedName("client_id")
+    val clientId: String,
+
+    @SerializedName("scope")
+    val scope: String? = null
+)
+
+/**
+ * Device Code Response
+ */
+data class DeviceCodeResponse(
+    @SerializedName("device_code")
+    val deviceCode: String,
+
+    @SerializedName("user_code")
+    val userCode: String,
+
+    @SerializedName("verification_uri")
+    val verificationUri: String,
+
+    @SerializedName("verification_uri_complete")
+    val verificationUriComplete: String? = null,
+
+    @SerializedName("expires_in")
+    val expiresIn: Long,
+
+    @SerializedName("interval")
+    val interval: Long = 5
+)
+
+/**
  * OAuth Token Request (認可コード交換)
  */
 data class OAuthTokenRequest(
@@ -20,7 +54,7 @@ data class OAuthTokenRequest(
     val code: String? = null,
 
     @SerializedName("redirect_uri")
-    val redirectUri: String,
+    val redirectUri: String? = null,
 
     @SerializedName("client_id")
     val clientId: String,
@@ -29,7 +63,10 @@ data class OAuthTokenRequest(
     val codeVerifier: String? = null,
 
     @SerializedName("refresh_token")
-    val refreshToken: String? = null
+    val refreshToken: String? = null,
+
+    @SerializedName("device_code")
+    val deviceCode: String? = null
 )
 
 /**
@@ -67,6 +104,9 @@ data class OAuthErrorResponse(
  * OpenAI OAuth API Service
  */
 interface OpenAIOAuthApiService {
+
+    @POST("device/code")
+    suspend fun getDeviceCode(@Body request: DeviceCodeRequest): DeviceCodeResponse
 
     @POST("oauth/token")
     suspend fun getToken(@Body request: OAuthTokenRequest): OAuthTokenResponse
