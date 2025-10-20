@@ -996,14 +996,14 @@ fun AppSettingsPanel() {
                         tint = Color(0xFF4EC9B0)
                     )
                     Text(
-                        "API認証について",
+                        "認証方法",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFF4EC9B0)
                     )
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "OpenAI APIは APIキー認証が必須です。ChatGPTのサブスクアカウントとは別の課金体系で、従量課金の契約が必要です。",
+                    "• OAuth認証: ブラウザでログイン（Plus: $5、Pro: $50の初回credits付き）\n• APIキー: 従来の手動設定方式\n\nどちらも従量課金が適用されます。",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 10.sp
@@ -1013,11 +1013,55 @@ fun AppSettingsPanel() {
 
         Spacer(Modifier.height(8.dp))
 
+        // OAuth認証ボタン
+        val oauthRepository = remember { com.vibeterminal.data.oauth.OAuthRepository(context) }
+        val oauthManager = remember { com.vibeterminal.data.oauth.OAuthManager(context, oauthRepository) }
+        val isOAuthAuthenticated by oauthRepository.isAuthenticated.collectAsState(initial = false)
+
+        Button(
+            onClick = {
+                if (isOAuthAuthenticated) {
+                    // ログアウト
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                        oauthManager.logout(com.vibeterminal.data.oauth.OAuthProvider.OPENAI)
+                    }
+                } else {
+                    // OAuth認証開始
+                    oauthManager.startOAuthFlow(com.vibeterminal.data.oauth.OpenAIOAuthConfig.getConfig())
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            colors = if (isOAuthAuthenticated) {
+                ButtonDefaults.buttonColors(containerColor = Color(0xFF2A5A2A))
+            } else {
+                ButtonDefaults.buttonColors()
+            }
+        ) {
+            Icon(
+                if (isOAuthAuthenticated) Icons.Default.CheckCircle else Icons.Default.Login,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                if (isOAuthAuthenticated) "OAuth認証済み（タップでログアウト）" else "ChatGPTアカウントでログイン"
+            )
+        }
+
+        Text("または", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+        // APIキー手動設定ボタン
         OutlinedButton(
             onClick = { showOpenAiKeyDialog = true },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(if (openAiApiKey.isEmpty()) "OpenAI APIキーを設定" else "APIキー設定済み")
+            Icon(
+                Icons.Default.Key,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(if (openAiApiKey.isEmpty()) "APIキーを手動設定" else "APIキー設定済み")
         }
 
         Text("モデル", style = MaterialTheme.typography.bodySmall)

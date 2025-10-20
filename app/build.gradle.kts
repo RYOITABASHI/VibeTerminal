@@ -87,6 +87,12 @@ dependencies {
     // DataStore (for settings)
     implementation("androidx.datastore:datastore-preferences:1.0.0")
 
+    // Security (for encrypted storage)
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
+    // Browser (for Custom Tabs - OAuth)
+    implementation("androidx.browser:browser:1.8.0")
+
     // Gemini AI (for advanced translation)
     implementation("com.google.ai.client.generativeai:generativeai:0.1.2")
 
