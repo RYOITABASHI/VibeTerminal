@@ -87,6 +87,7 @@ private fun ExpandedLayout(
                 .fillMaxHeight()
         ) {
             TerminalView(
+                viewModel = terminalViewModel,
                 output = terminalOutput,
                 onCommand = { terminalViewModel.executeCommand(it) },
                 modifier = Modifier.fillMaxSize()
@@ -163,6 +164,7 @@ private fun CompactLayout(
         Box(modifier = Modifier.fillMaxSize()) {
             when (selectedTab) {
                 0 -> TerminalView(
+                    viewModel = terminalViewModel,
                     output = terminalOutput,
                     onCommand = { terminalViewModel.executeCommand(it) },
                     modifier = Modifier.fillMaxSize()

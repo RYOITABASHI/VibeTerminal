@@ -107,6 +107,7 @@ fun VSCodeLayout(
                         )
                 ) {
                     TerminalView(
+                        viewModel = terminalViewModel,
                         output = terminalOutput,
                         onCommand = { terminalViewModel.executeCommand(it) },
                         isKeyboardVisible = isKeyboardVisible,
@@ -155,6 +156,7 @@ fun VSCodeLayout(
                     )
             ) {
                 TerminalView(
+                    viewModel = terminalViewModel,
                     output = terminalOutput,
                     onCommand = { terminalViewModel.executeCommand(it) },
                     isKeyboardVisible = isKeyboardVisible,
