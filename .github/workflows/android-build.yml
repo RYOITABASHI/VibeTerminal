@@ -35,26 +35,28 @@ jobs:
         path: app/build/outputs/apk/debug/*.apk
         retention-days: 30
 
-    - name: Build Release APK
-      run: ./gradlew assembleRelease --stacktrace
-      continue-on-error: true
+    # Release build disabled - requires signing configuration
+    # - name: Build Release APK
+    #   run: ./gradlew assembleRelease --stacktrace
+    #   continue-on-error: true
+    #
+    # - name: Upload Release APK
+    #   uses: actions/upload-artifact@v4
+    #   if: success()
+    #   with:
+    #     name: vibeterminal-release
+    #     path: app/build/outputs/apk/release/*.apk
+    #     retention-days: 90
 
-    - name: Upload Release APK
-      uses: actions/upload-artifact@v4
-      if: success()
-      with:
-        name: vibeterminal-release
-        path: app/build/outputs/apk/release/*.apk
-        retention-days: 90
-
-    - name: Run tests
-      run: ./gradlew test --stacktrace
-      continue-on-error: true
-
-    - name: Upload test results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: test-results
-        path: app/build/test-results/
-        retention-days: 7
+    # Tests disabled - no test files yet
+    # - name: Run tests
+    #   run: ./gradlew test --stacktrace
+    #   continue-on-error: true
+    #
+    # - name: Upload test results
+    #   uses: actions/upload-artifact@v4
+    #   if: always()
+    #   with:
+    #     name: test-results
+    #     path: app/build/test-results/
+    #     retention-days: 7
