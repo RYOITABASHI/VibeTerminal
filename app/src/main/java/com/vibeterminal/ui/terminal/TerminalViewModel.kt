@@ -129,10 +129,29 @@ class TerminalViewModel : ViewModel() {
      */
     private suspend fun executeShellCommand(command: String): String {
         return try {
-            val args = command.split(" ").toTypedArray()
-            val process = ProcessBuilder(*args)
-                .redirectErrorStream(true)
-                .start()
+            // Use bash shell to execute command with proper environment
+            val termuxPrefix = "/data/data/com.termux/files/usr"
+            val termuxHome = "/data/data/com.termux/files/home"
+
+            val processBuilder = ProcessBuilder(
+                "$termuxPrefix/bin/bash",
+                "-c",
+                command
+            )
+
+            // Set environment variables
+            val env = processBuilder.environment()
+            env["PATH"] = "$termuxPrefix/bin:$termuxPrefix/bin/applets"
+            env["HOME"] = termuxHome
+            env["PREFIX"] = termuxPrefix
+            env["TMPDIR"] = "$termuxPrefix/tmp"
+            env["SHELL"] = "$termuxPrefix/bin/bash"
+
+            // Set working directory
+            processBuilder.directory(File(termuxHome))
+            processBuilder.redirectErrorStream(true)
+
+            val process = processBuilder.start()
 
             // Wait for process with timeout
             val output = StringBuilder()
