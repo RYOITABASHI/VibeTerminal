@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.serialization") version "1.9.20"
+    id("com.google.devtools.ksp") version "1.9.20-1.0.14"
 }
 
 android {
@@ -81,6 +82,11 @@ dependencies {
     // Coil (for image loading)
     implementation("io.coil-kt:coil-compose:2.5.0")
 
+    // Markdown rendering with syntax highlighting
+    implementation("com.halilibo.compose-richtext:richtext-ui:0.17.0")
+    implementation("com.halilibo.compose-richtext:richtext-ui-material3:0.17.0")
+    implementation("com.halilibo.compose-richtext:richtext-commonmark:0.17.0")
+
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
@@ -89,6 +95,11 @@ dependencies {
 
     // DataStore (for settings)
     implementation("androidx.datastore:datastore-preferences:1.0.0")
+
+    // Room Database (for chat history)
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    ksp("androidx.room:room-compiler:2.6.1")
 
     // Security (for encrypted storage)
     implementation("androidx.security:security-crypto:1.1.0-alpha06")

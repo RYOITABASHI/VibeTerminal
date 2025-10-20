@@ -3,6 +3,13 @@ package com.vibeterminal.ui.chat
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.room.ColumnInfo
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+import androidx.room.TypeConverter
+import androidx.room.TypeConverters
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 
 /**
  * Chat message role
@@ -16,12 +23,22 @@ enum class ChatRole {
 /**
  * Chat message
  */
+@Entity(tableName = "chat_messages")
+@TypeConverters(Converters::class)
 data class ChatMessage(
+    @PrimaryKey
     val id: String = java.util.UUID.randomUUID().toString(),
+
+    @ColumnInfo(name = "session_id")
+    val sessionId: String,
+
     val role: ChatRole,
     val content: String,
     val timestamp: Long = System.currentTimeMillis(),
+
+    @ColumnInfo(name = "is_error")
     val isError: Boolean = false,
+
     val attachments: List<ChatAttachment> = emptyList()
 )
 
@@ -47,13 +64,31 @@ enum class AttachmentType {
 /**
  * Chat session
  */
+@Entity(tableName = "chat_sessions")
 data class ChatSession(
+    @PrimaryKey
     val id: String = java.util.UUID.randomUUID().toString(),
+
     val title: String = "新しいチャット",
-    val messages: List<ChatMessage> = emptyList(),
+
+    @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
-)
+
+    @ColumnInfo(name = "updated_at")
+    val updatedAt: Long = System.currentTimeMillis(),
+
+    // For in-memory use only (not stored in DB)
+    @androidx.room.Ignore
+    val messages: List<ChatMessage> = emptyList()
+) {
+    // Secondary constructor for Room
+    constructor(
+        id: String,
+        title: String,
+        createdAt: Long,
+        updatedAt: Long
+    ) : this(id, title, createdAt, updatedAt, emptyList())
+}
 
 /**
  * Quick action suggestions for chat
@@ -111,4 +146,42 @@ object QuickActions {
             description = "コードの構造を整理します"
         )
     )
+}
+
+/**
+ * Type converters for Room Database
+ */
+class Converters {
+    private val gson = Gson()
+
+    @TypeConverter
+    fun fromChatRole(value: ChatRole): String {
+        return value.name
+    }
+
+    @TypeConverter
+    fun toChatRole(value: String): ChatRole {
+        return ChatRole.valueOf(value)
+    }
+
+    @TypeConverter
+    fun fromAttachmentsList(value: List<ChatAttachment>): String {
+        return gson.toJson(value)
+    }
+
+    @TypeConverter
+    fun toAttachmentsList(value: String): List<ChatAttachment> {
+        val listType = object : TypeToken<List<ChatAttachment>>() {}.type
+        return gson.fromJson(value, listType)
+    }
+
+    @TypeConverter
+    fun fromAttachmentType(value: AttachmentType): String {
+        return value.name
+    }
+
+    @TypeConverter
+    fun toAttachmentType(value: String): AttachmentType {
+        return AttachmentType.valueOf(value)
+    }
 }

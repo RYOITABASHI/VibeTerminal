@@ -1,15 +1,16 @@
 package com.vibeterminal.ui.chat
 
+import android.app.Application
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.vibeterminal.data.chat.ChatDatabase
+import com.vibeterminal.data.chat.ChatRepository
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -19,15 +20,17 @@ import java.net.URL
 import java.util.Base64
 
 /**
- * ViewModel for AI Chat
+ * ViewModel for AI Chat with database persistence
  */
-class ChatViewModel : ViewModel() {
+class ChatViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val repository: ChatRepository
+    private var currentSessionId: String = ""
 
     private val _currentSession = MutableStateFlow(ChatSession())
     val currentSession: StateFlow<ChatSession> = _currentSession.asStateFlow()
 
-    private val _sessions = MutableStateFlow<List<ChatSession>>(emptyList())
-    val sessions: StateFlow<List<ChatSession>> = _sessions.asStateFlow()
+    private val _sessions: StateFlow<List<ChatSession>>
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -39,6 +42,33 @@ class ChatViewModel : ViewModel() {
         ignoreUnknownKeys = true
         isLenient = true
     }
+
+    init {
+        val chatDao = ChatDatabase.getDatabase(application).chatDao()
+        repository = ChatRepository(chatDao)
+
+        // Load all sessions
+        _sessions = repository.getAllSessions()
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyList()
+            )
+
+        // Create initial session if none exists
+        viewModelScope.launch {
+            if (_sessions.value.isEmpty()) {
+                newSession()
+            } else {
+                // Load the most recent session
+                _sessions.value.firstOrNull()?.let { session ->
+                    loadSession(session.id)
+                }
+            }
+        }
+    }
+
+    val sessions: StateFlow<List<ChatSession>> get() = _sessions
 
     fun setOpenAiApiKey(apiKey: String?) {
         openAiApiKey = apiKey
@@ -57,11 +87,16 @@ class ChatViewModel : ViewModel() {
         viewModelScope.launch {
             // Add user message
             val userMessage = ChatMessage(
+                sessionId = currentSessionId,
                 role = ChatRole.USER,
                 content = content,
                 attachments = attachments
             )
 
+            // Save to database
+            repository.insertMessage(userMessage)
+
+            // Update current session locally
             _currentSession.value = _currentSession.value.copy(
                 messages = _currentSession.value.messages + userMessage,
                 updatedAt = System.currentTimeMillis()
@@ -78,10 +113,15 @@ class ChatViewModel : ViewModel() {
 
                 // Add assistant message
                 val assistantMessage = ChatMessage(
+                    sessionId = currentSessionId,
                     role = ChatRole.ASSISTANT,
                     content = response
                 )
 
+                // Save to database
+                repository.insertMessage(assistantMessage)
+
+                // Update current session locally
                 _currentSession.value = _currentSession.value.copy(
                     messages = _currentSession.value.messages + assistantMessage,
                     updatedAt = System.currentTimeMillis()
@@ -90,11 +130,16 @@ class ChatViewModel : ViewModel() {
             } catch (e: Exception) {
                 // Add error message
                 val errorMessage = ChatMessage(
+                    sessionId = currentSessionId,
                     role = ChatRole.ASSISTANT,
                     content = "エラーが発生しました: ${e.message}",
                     isError = true
                 )
 
+                // Save to database
+                repository.insertMessage(errorMessage)
+
+                // Update current session locally
                 _currentSession.value = _currentSession.value.copy(
                     messages = _currentSession.value.messages + errorMessage
                 )
@@ -253,29 +298,66 @@ class ChatViewModel : ViewModel() {
     }
 
     /**
-     * Clear current session
+     * Clear current session messages
      */
     fun clearSession() {
-        _currentSession.value = ChatSession()
+        viewModelScope.launch {
+            if (currentSessionId.isNotEmpty()) {
+                repository.clearMessagesForSession(currentSessionId)
+                _currentSession.value = _currentSession.value.copy(
+                    messages = emptyList(),
+                    updatedAt = System.currentTimeMillis()
+                )
+            }
+        }
     }
 
     /**
      * Create new session
      */
     fun newSession() {
-        // Save current session if it has messages
-        if (_currentSession.value.messages.isNotEmpty()) {
-            _sessions.value = _sessions.value + _currentSession.value
-        }
+        viewModelScope.launch {
+            val newSession = ChatSession(
+                title = "新しいチャット",
+                createdAt = System.currentTimeMillis(),
+                updatedAt = System.currentTimeMillis()
+            )
 
-        _currentSession.value = ChatSession()
+            repository.insertSession(newSession)
+            currentSessionId = newSession.id
+            _currentSession.value = newSession
+        }
     }
 
     /**
-     * Load session
+     * Load session by ID
      */
-    fun loadSession(session: ChatSession) {
-        _currentSession.value = session
+    fun loadSession(sessionId: String) {
+        viewModelScope.launch {
+            repository.getSessionWithMessages(sessionId)?.let { session ->
+                currentSessionId = sessionId
+                _currentSession.value = session
+
+                // Listen to message updates for this session
+                repository.getMessagesForSession(sessionId).collect { messages ->
+                    _currentSession.value = _currentSession.value.copy(messages = messages)
+                }
+            }
+        }
+    }
+
+    /**
+     * Delete a session
+     */
+    fun deleteSession(sessionId: String) {
+        viewModelScope.launch {
+            repository.deleteSession(sessionId)
+
+            // If deleting current session, create a new one
+            if (sessionId == currentSessionId) {
+                newSession()
+            }
+        }
     }
 
     /**
