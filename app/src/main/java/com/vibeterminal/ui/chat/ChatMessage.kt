@@ -31,7 +31,10 @@ data class ChatMessage(
 data class ChatAttachment(
     val type: AttachmentType,
     val content: String,
-    val name: String? = null
+    val name: String? = null,
+    val mimeType: String? = null,
+    val uri: String? = null,
+    val base64Data: String? = null // For images - base64 encoded data
 )
 
 enum class AttachmentType {

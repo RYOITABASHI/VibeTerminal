@@ -1,6 +1,12 @@
 package com.vibeterminal.ui.chat
 
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -13,11 +19,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -107,6 +117,7 @@ fun ChatPanel(
 
         // Input area
         ChatInputArea(
+            viewModel = viewModel,
             value = inputText,
             onValueChange = { inputText = it },
             onSend = {
@@ -352,6 +363,36 @@ private fun ChatMessageBubble(message: ChatMessage) {
 
 @Composable
 private fun AttachmentBadge(attachment: ChatAttachment) {
+    when (attachment.type) {
+        AttachmentType.IMAGE -> {
+            // Show image preview for images
+            if (attachment.uri != null) {
+                Box(
+                    modifier = Modifier
+                        .widthIn(max = 180.dp)
+                        .heightIn(max = 180.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                ) {
+                    AsyncImage(
+                        model = Uri.parse(attachment.uri),
+                        contentDescription = attachment.name,
+                        modifier = Modifier.fillMaxWidth(),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+            } else {
+                // Fallback to badge
+                AttachmentBadgeDefault(attachment)
+            }
+        }
+        else -> {
+            AttachmentBadgeDefault(attachment)
+        }
+    }
+}
+
+@Composable
+private fun AttachmentBadgeDefault(attachment: ChatAttachment) {
     Surface(
         color = MaterialTheme.colorScheme.surface,
         shape = MaterialTheme.shapes.small
@@ -381,31 +422,99 @@ private fun AttachmentBadge(attachment: ChatAttachment) {
 
 @Composable
 private fun ChatInputArea(
+    viewModel: ChatViewModel,
     value: String,
     onValueChange: (String) -> Unit,
     onSend: () -> Unit,
     onAttachTerminalOutput: () -> Unit,
     enabled: Boolean
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var showAttachMenu by remember { mutableStateOf(false) }
+    var pendingAttachments by remember { mutableStateOf<List<ChatAttachment>>(emptyList()) }
+
+    // Image picker launcher
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            scope.launch {
+                val attachment = viewModel.processImageUri(context, uri)
+                if (attachment != null) {
+                    pendingAttachments = pendingAttachments + attachment
+                    Toast.makeText(context, "画像を追加しました", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "画像の読み込みに失敗しました", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color(0xFF000000))
             .padding(8.dp)
     ) {
+        // Preview attached images
+        if (pendingAttachments.isNotEmpty()) {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(bottom = 8.dp)
+            ) {
+                items(pendingAttachments) { attachment ->
+                    AttachmentPreview(
+                        attachment = attachment,
+                        onRemove = {
+                            pendingAttachments = pendingAttachments - attachment
+                        }
+                    )
+                }
+            }
+        }
+
         Row(
             verticalAlignment = Alignment.Bottom,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Attach button
-            IconButton(
-                onClick = onAttachTerminalOutput,
-                enabled = enabled
-            ) {
-                Icon(
-                    Icons.Default.AttachFile,
-                    contentDescription = "ターミナル出力を添付"
-                )
+            // Attach menu
+            Box {
+                IconButton(
+                    onClick = { showAttachMenu = true },
+                    enabled = enabled
+                ) {
+                    Icon(
+                        Icons.Default.AttachFile,
+                        contentDescription = "ファイルを添付"
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = showAttachMenu,
+                    onDismissRequest = { showAttachMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("画像を選択", style = TextStyle(fontSize = 10.sp)) },
+                        onClick = {
+                            showAttachMenu = false
+                            imagePickerLauncher.launch("image/*")
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.Image, contentDescription = null)
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("ターミナル出力", style = TextStyle(fontSize = 10.sp)) },
+                        onClick = {
+                            showAttachMenu = false
+                            onAttachTerminalOutput()
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.Terminal, contentDescription = null)
+                        }
+                    )
+                }
             }
 
             // Input field
@@ -421,14 +530,72 @@ private fun ChatInputArea(
 
             // Send button
             IconButton(
-                onClick = onSend,
-                enabled = enabled && value.isNotBlank()
+                onClick = {
+                    if (value.isNotBlank() || pendingAttachments.isNotEmpty()) {
+                        viewModel.sendMessage(
+                            value.ifBlank { if (pendingAttachments.any { it.type == AttachmentType.IMAGE }) "この画像について教えて" else "説明して" },
+                            pendingAttachments
+                        )
+                        onValueChange("")
+                        pendingAttachments = emptyList()
+                    }
+                },
+                enabled = enabled && (value.isNotBlank() || pendingAttachments.isNotEmpty())
             ) {
                 Icon(
                     Icons.Default.Send,
                     contentDescription = "送信"
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun AttachmentPreview(
+    attachment: ChatAttachment,
+    onRemove: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(60.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
+    ) {
+        when (attachment.type) {
+            AttachmentType.IMAGE -> {
+                if (attachment.uri != null) {
+                    AsyncImage(
+                        model = Uri.parse(attachment.uri),
+                        contentDescription = attachment.name,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }
+            else -> {
+                Icon(
+                    Icons.Default.InsertDriveFile,
+                    contentDescription = attachment.name,
+                    modifier = Modifier.fillMaxSize().padding(16.dp)
+                )
+            }
+        }
+
+        // Remove button
+        IconButton(
+            onClick = onRemove,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .size(20.dp)
+                .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(50))
+        ) {
+            Icon(
+                Icons.Default.Close,
+                contentDescription = "削除",
+                modifier = Modifier.size(12.dp),
+                tint = Color.White
+            )
         }
     }
 }

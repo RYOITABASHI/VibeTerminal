@@ -1,5 +1,9 @@
 package com.vibeterminal.ui.chat
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.delay
@@ -9,8 +13,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.Base64
 
 /**
  * ViewModel for AI Chat
@@ -27,7 +33,7 @@ class ChatViewModel : ViewModel() {
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     private var openAiApiKey: String? = null
-    private var selectedModel: String = "gpt-4o-mini"
+    private var selectedModel: String = "gpt-4o" // Vision-capable model
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -127,7 +133,7 @@ class ChatViewModel : ViewModel() {
                             ChatRole.ASSISTANT -> "assistant"
                             ChatRole.SYSTEM -> "system"
                         },
-                        "content" to buildMessageContent(msg)
+                        "content" to buildMessageContentForAPI(msg)
                     )
                 }
 
@@ -162,7 +168,67 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    private fun buildMessageContent(message: ChatMessage): String {
+    /**
+     * Build message content for OpenAI API (supports Vision API)
+     */
+    private fun buildMessageContentForAPI(message: ChatMessage): Any {
+        val hasImages = message.attachments.any { it.type == AttachmentType.IMAGE && it.base64Data != null }
+
+        return if (hasImages) {
+            // Vision API format: array of content parts
+            val contentParts = mutableListOf<Map<String, Any>>()
+
+            // Add text content
+            if (message.content.isNotBlank()) {
+                contentParts.add(mapOf(
+                    "type" to "text",
+                    "text" to message.content
+                ))
+            }
+
+            // Add attachments
+            message.attachments.forEach { attachment ->
+                when (attachment.type) {
+                    AttachmentType.IMAGE -> {
+                        if (attachment.base64Data != null) {
+                            val mimeType = attachment.mimeType ?: "image/jpeg"
+                            contentParts.add(mapOf(
+                                "type" to "image_url",
+                                "image_url" to mapOf(
+                                    "url" to "data:$mimeType;base64,${attachment.base64Data}"
+                                )
+                            ))
+                        }
+                    }
+                    AttachmentType.TERMINAL_OUTPUT -> {
+                        contentParts.add(mapOf(
+                            "type" to "text",
+                            "text" to "\n\nターミナル出力:\n```\n${attachment.content}\n```"
+                        ))
+                    }
+                    AttachmentType.CODE_SNIPPET -> {
+                        contentParts.add(mapOf(
+                            "type" to "text",
+                            "text" to "\n\nコード:\n```\n${attachment.content}\n```"
+                        ))
+                    }
+                    AttachmentType.FILE -> {
+                        contentParts.add(mapOf(
+                            "type" to "text",
+                            "text" to "\n\nファイル ${attachment.name}:\n```\n${attachment.content}\n```"
+                        ))
+                    }
+                }
+            }
+
+            contentParts
+        } else {
+            // Text-only format: simple string
+            buildMessageContentAsString(message)
+        }
+    }
+
+    private fun buildMessageContentAsString(message: ChatMessage): String {
         val content = StringBuilder(message.content)
 
         // Add attachments as context
@@ -210,6 +276,58 @@ class ChatViewModel : ViewModel() {
      */
     fun loadSession(session: ChatSession) {
         _currentSession.value = session
+    }
+
+    /**
+     * Process image URI and convert to Base64
+     */
+    suspend fun processImageUri(context: Context, uri: Uri): ChatAttachment? {
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val bitmap = BitmapFactory.decodeStream(inputStream)
+                inputStream?.close()
+
+                if (bitmap == null) {
+                    throw Exception("画像の読み込みに失敗しました")
+                }
+
+                // Resize if too large (max 2048px)
+                val resizedBitmap = if (bitmap.width > 2048 || bitmap.height > 2048) {
+                    val scale = 2048f / maxOf(bitmap.width, bitmap.height)
+                    Bitmap.createScaledBitmap(
+                        bitmap,
+                        (bitmap.width * scale).toInt(),
+                        (bitmap.height * scale).toInt(),
+                        true
+                    )
+                } else {
+                    bitmap
+                }
+
+                // Convert to Base64
+                val outputStream = ByteArrayOutputStream()
+                resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 85, outputStream)
+                val base64Data = Base64.getEncoder().encodeToString(outputStream.toByteArray())
+
+                // Get MIME type
+                val mimeType = context.contentResolver.getType(uri) ?: "image/jpeg"
+
+                // Get filename
+                val fileName = uri.lastPathSegment ?: "image.jpg"
+
+                ChatAttachment(
+                    type = AttachmentType.IMAGE,
+                    content = "画像: $fileName",
+                    name = fileName,
+                    mimeType = mimeType,
+                    uri = uri.toString(),
+                    base64Data = base64Data
+                )
+            } catch (e: Exception) {
+                null
+            }
+        }
     }
 }
 
