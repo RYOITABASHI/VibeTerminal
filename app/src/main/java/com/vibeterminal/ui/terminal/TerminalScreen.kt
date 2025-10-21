@@ -24,6 +24,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vibeterminal.ui.keyboard.VirtualKeyboard
 import com.vibeterminal.ui.keyboard.SpecialKey
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.imeNestedScroll
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -201,6 +203,8 @@ fun TerminalView(
 
     Column(
         modifier = modifier
+            .imePadding()  // Adjust for software keyboard
+            .imeNestedScroll()  // Enable smooth keyboard scrolling
             .background(Color(0xFF000000))
             .padding(8.dp)
     ) {
