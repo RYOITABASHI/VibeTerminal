@@ -129,28 +129,42 @@ class TerminalViewModel : ViewModel() {
      */
     private suspend fun executeShellCommand(command: String): String {
         return try {
-            // Use bash shell to execute command with proper environment
+            // Try Termux first (if available), fallback to system shell
             val termuxPrefix = "/data/data/com.termux/files/usr"
+            val termuxBash = "$termuxPrefix/bin/bash"
             val termuxHome = "/data/data/com.termux/files/home"
 
-            val processBuilder = ProcessBuilder(
-                "$termuxPrefix/bin/bash",
-                "-c",
-                command
-            )
+            // Check if Termux bash is accessible
+            val useTermux = try {
+                File(termuxBash).exists() && File(termuxBash).canExecute()
+            } catch (e: Exception) {
+                false
+            }
 
-            // Set environment variables
-            val env = processBuilder.environment()
-            env["PATH"] = "$termuxPrefix/bin:$termuxPrefix/bin/applets"
-            env["HOME"] = termuxHome
-            env["PREFIX"] = termuxPrefix
-            env["TMPDIR"] = "$termuxPrefix/tmp"
-            env["SHELL"] = "$termuxPrefix/bin/bash"
+            val processBuilder = if (useTermux) {
+                // Use Termux bash
+                ProcessBuilder(termuxBash, "-c", command).apply {
+                    val env = environment()
+                    env["PATH"] = "$termuxPrefix/bin:$termuxPrefix/bin/applets:${System.getenv("PATH")}"
+                    env["HOME"] = termuxHome
+                    env["PREFIX"] = termuxPrefix
+                    env["TMPDIR"] = "$termuxPrefix/tmp"
+                    env["SHELL"] = termuxBash
+                    directory(File(termuxHome))
+                }
+            } else {
+                // Fallback to system shell (/system/bin/sh)
+                ProcessBuilder("/system/bin/sh", "-c", command).apply {
+                    val env = environment()
+                    // Use app's private directory
+                    val appHome = appContext?.filesDir?.absolutePath ?: "/data/local/tmp"
+                    env["HOME"] = appHome
+                    env["TMPDIR"] = appContext?.cacheDir?.absolutePath ?: "/data/local/tmp"
+                    directory(File(appHome))
+                }
+            }
 
-            // Set working directory
-            processBuilder.directory(File(termuxHome))
             processBuilder.redirectErrorStream(true)
-
             val process = processBuilder.start()
 
             // Wait for process with timeout
