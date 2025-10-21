@@ -4,7 +4,6 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -28,7 +27,7 @@ import com.vibeterminal.ui.keyboard.VirtualKeyboard
 import com.vibeterminal.ui.keyboard.SpecialKey
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TerminalScreen(
     viewModel: TerminalViewModel = viewModel(),
@@ -205,7 +204,6 @@ fun TerminalView(
     Column(
         modifier = modifier
             .imePadding()  // Adjust for software keyboard
-            .imeNestedScroll()  // Enable smooth keyboard scrolling
             .background(Color(0xFF000000))
             .padding(8.dp)
     ) {
