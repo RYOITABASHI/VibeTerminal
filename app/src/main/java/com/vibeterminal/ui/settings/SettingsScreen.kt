@@ -111,6 +111,17 @@ fun SettingsScreen(
                 )
             }
 
+            // Tools Management Section
+            var showToolsDialog by remember { mutableStateOf(false) }
+            SettingsSection(title = "Tools & Shell") {
+                PreferenceItem(
+                    title = "Manage Tools",
+                    subtitle = "Install BusyBox, AI CLI tools, and manage Termux integration",
+                    icon = Icons.Default.Build,
+                    onClick = { showToolsDialog = true }
+                )
+            }
+
             // About Section
             SettingsSection(title = "About") {
                 PreferenceItem(
@@ -126,6 +137,23 @@ fun SettingsScreen(
                     onClick = { /* TODO: Open GitHub */ }
                 )
             }
+        }
+
+        // Tools Management Dialog
+        if (showToolsDialog) {
+            AlertDialog(
+                onDismissRequest = { showToolsDialog = false },
+                title = { Text("ツール管理") },
+                text = {
+                    ToolsManagementScreen()
+                },
+                confirmButton = {
+                    TextButton(onClick = { showToolsDialog = false }) {
+                        Text("閉じる")
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(0.9f)
+            )
         }
     }
 }
