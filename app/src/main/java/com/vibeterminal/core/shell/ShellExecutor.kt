@@ -149,10 +149,12 @@ class ShellExecutor(private val context: Context) {
      */
     private fun executeViaSystemShell(command: String): Pair<String, Int> {
         val appHome = context.filesDir.absolutePath
+        val appBin = File(context.filesDir, "bin").absolutePath
 
         val processBuilder = ProcessBuilder("/system/bin/sh", "-c", command)
 
         val env = processBuilder.environment()
+        env["PATH"] = "$appBin:${System.getenv("PATH")}"
         env["HOME"] = appHome
         env["TMPDIR"] = context.cacheDir.absolutePath
 
