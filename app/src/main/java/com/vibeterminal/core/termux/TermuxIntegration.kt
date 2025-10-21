@@ -192,7 +192,7 @@ class TermuxIntegration(private val context: Context) {
         return mapOf(
             "PREFIX" to TERMUX_PREFIX,
             "HOME" to TERMUX_HOME,
-            "PATH" to "$TERMUX_PREFIX/bin:$TERMUX_PREFIX/bin/applets:\${System.getenv("PATH")}",
+            "PATH" to "$TERMUX_PREFIX/bin:$TERMUX_PREFIX/bin/applets:${System.getenv("PATH")}",
             "TMPDIR" to "$TERMUX_PREFIX/tmp",
             "SHELL" to "$TERMUX_PREFIX/bin/bash",
             "LANG" to "en_US.UTF-8",

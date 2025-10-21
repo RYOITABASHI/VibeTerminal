@@ -25,6 +25,8 @@ fun SettingsScreen(
     val openAiApiKey by viewModel.openAiApiKey.collectAsState()
     val openAiModel by viewModel.openAiModel.collectAsState()
 
+    var showToolsDialog by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -112,7 +114,6 @@ fun SettingsScreen(
             }
 
             // Tools Management Section
-            var showToolsDialog by remember { mutableStateOf(false) }
             SettingsSection(title = "Tools & Shell") {
                 PreferenceItem(
                     title = "Manage Tools",
