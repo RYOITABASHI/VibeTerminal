@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vibeterminal.core.translator.TranslationEngine
 import com.vibeterminal.core.translator.TranslatedOutput
+import com.vibeterminal.core.shell.ShellExecutor
 import com.vibeterminal.ui.ime.ComposingTextState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -40,6 +41,9 @@ class TerminalViewModel : ViewModel() {
 
     // Translation engine
     private lateinit var translationEngine: TranslationEngine
+
+    // Shell executor
+    private var shellExecutor: ShellExecutor? = null
 
     // File picker state
     private val _filePickerTrigger = MutableStateFlow(FilePickerType.NONE)
@@ -78,6 +82,11 @@ class TerminalViewModel : ViewModel() {
         appContext = context?.applicationContext
         geminiApiKey = apiKey
         useAiTranslation = useAi
+
+        // Initialize shell executor
+        context?.applicationContext?.let {
+            shellExecutor = ShellExecutor(it)
+        }
     }
 
     fun updateSettings(apiKey: String?, useAi: Boolean) {
@@ -125,63 +134,26 @@ class TerminalViewModel : ViewModel() {
     }
 
     /**
-     * Execute shell command
+     * Execute shell command using ShellExecutor
      */
     private suspend fun executeShellCommand(command: String): String {
         return try {
-            // Try Termux first (if available), fallback to system shell
-            val termuxPrefix = "/data/data/com.termux/files/usr"
-            val termuxBash = "$termuxPrefix/bin/bash"
-            val termuxHome = "/data/data/com.termux/files/home"
-
-            // Check if Termux bash is accessible
-            val useTermux = try {
-                File(termuxBash).exists() && File(termuxBash).canExecute()
-            } catch (e: Exception) {
-                false
-            }
-
-            val processBuilder = if (useTermux) {
-                // Use Termux bash
-                ProcessBuilder(termuxBash, "-c", command).apply {
-                    val env = environment()
-                    env["PATH"] = "$termuxPrefix/bin:$termuxPrefix/bin/applets:${System.getenv("PATH")}"
-                    env["HOME"] = termuxHome
-                    env["PREFIX"] = termuxPrefix
-                    env["TMPDIR"] = "$termuxPrefix/tmp"
-                    env["SHELL"] = termuxBash
-                    directory(File(termuxHome))
+            // Use ShellExecutor if available, fallback to legacy implementation
+            val executor = shellExecutor
+            if (executor != null) {
+                val result = executor.execute(command)
+                buildString {
+                    append(result.output)
+                    if (result.exitCode != 0) {
+                        append("\n⚠️  Exit code: ${result.exitCode}")
+                    }
+                    // Add shell type info in debug mode
+                    // append("\n[${result.shellType.getDisplayName()}]")
                 }
             } else {
-                // Fallback to system shell (/system/bin/sh)
-                ProcessBuilder("/system/bin/sh", "-c", command).apply {
-                    val env = environment()
-                    // Use app's private directory
-                    val appHome = appContext?.filesDir?.absolutePath ?: "/data/local/tmp"
-                    env["HOME"] = appHome
-                    env["TMPDIR"] = appContext?.cacheDir?.absolutePath ?: "/data/local/tmp"
-                    directory(File(appHome))
-                }
+                // Legacy fallback
+                executeLegacyShellCommand(command)
             }
-
-            processBuilder.redirectErrorStream(true)
-            val process = processBuilder.start()
-
-            // Wait for process with timeout
-            val output = StringBuilder()
-            val reader = process.inputStream.bufferedReader()
-
-            var line: String?
-            while (reader.readLine().also { line = it } != null) {
-                output.append(line).append("\n")
-            }
-
-            val exitCode = process.waitFor()
-            if (exitCode != 0) {
-                output.append("\n⚠️  Exit code: $exitCode")
-            }
-
-            output.toString()
         } catch (e: SecurityException) {
             throw e
         } catch (e: java.io.IOException) {
@@ -189,6 +161,43 @@ class TerminalViewModel : ViewModel() {
         } catch (e: Exception) {
             "⚠️  Command execution failed: ${e.message}"
         }
+    }
+
+    /**
+     * Legacy shell command execution (fallback)
+     */
+    private fun executeLegacyShellCommand(command: String): String {
+        val appHome = appContext?.filesDir?.absolutePath ?: "/data/local/tmp"
+
+        val processBuilder = ProcessBuilder("/system/bin/sh", "-c", command)
+        val env = processBuilder.environment()
+        env["HOME"] = appHome
+        env["TMPDIR"] = appContext?.cacheDir?.absolutePath ?: "/data/local/tmp"
+        processBuilder.directory(File(appHome))
+        processBuilder.redirectErrorStream(true)
+
+        val process = processBuilder.start()
+        val output = StringBuilder()
+        val reader = process.inputStream.bufferedReader()
+
+        var line: String?
+        while (reader.readLine().also { line = it } != null) {
+            output.append(line).append("\n")
+        }
+
+        val exitCode = process.waitFor()
+        if (exitCode != 0) {
+            output.append("\n⚠️  Exit code: $exitCode")
+        }
+
+        return output.toString()
+    }
+
+    /**
+     * Get current shell type info
+     */
+    fun getShellInfo(): String {
+        return shellExecutor?.getShellInfo() ?: "Shell not initialized"
     }
 
     /**
