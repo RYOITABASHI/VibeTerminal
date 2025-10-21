@@ -6,7 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vibeterminal.core.translator.TranslationEngine
 import com.vibeterminal.core.translator.TranslatedOutput
-import com.vibeterminal.core.shell.ShellExecutor
+import com.vibeterminal.core.shell.TermuxShellSession
 import com.vibeterminal.ui.ime.ComposingTextState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,10 +17,11 @@ import java.io.File
 /**
  * ViewModel for Terminal screen
  * Manages terminal state, translation, and IME
+ * Uses persistent Termux shell session for full terminal functionality
  */
 class TerminalViewModel : ViewModel() {
 
-    // Terminal output state
+    // Terminal output state (now synced with shell session)
     private val _terminalOutput = MutableStateFlow("")
     val terminalOutput: StateFlow<String> = _terminalOutput.asStateFlow()
 
@@ -42,8 +43,8 @@ class TerminalViewModel : ViewModel() {
     // Translation engine
     private lateinit var translationEngine: TranslationEngine
 
-    // Shell executor
-    private var shellExecutor: ShellExecutor? = null
+    // Termux shell session (replaces ShellExecutor)
+    private var shellSession: TermuxShellSession? = null
 
     // File picker state
     private val _filePickerTrigger = MutableStateFlow(FilePickerType.NONE)
@@ -83,9 +84,20 @@ class TerminalViewModel : ViewModel() {
         geminiApiKey = apiKey
         useAiTranslation = useAi
 
-        // Initialize shell executor
-        context?.applicationContext?.let {
-            shellExecutor = ShellExecutor(it)
+        // Initialize Termux shell session
+        context?.applicationContext?.let { ctx ->
+            shellSession = TermuxShellSession(ctx, viewModelScope).apply {
+                if (start()) {
+                    // Sync shell output to terminal output
+                    viewModelScope.launch {
+                        output.collect { newOutput ->
+                            _terminalOutput.value = newOutput
+                        }
+                    }
+                } else {
+                    _terminalOutput.value += "⚠️  Failed to start shell session\n"
+                }
+            }
         }
     }
 
@@ -104,100 +116,31 @@ class TerminalViewModel : ViewModel() {
     }
 
     /**
-     * Execute a command
+     * Execute a command in the persistent shell session
      */
     fun executeCommand(command: String) {
         viewModelScope.launch {
             _currentCommand.value = command
 
-            // Add command to output
-            _terminalOutput.value += "\n$ $command\n"
+            // Send command to shell session
+            shellSession?.executeCommand(command)
 
-            try {
-                // Execute command (simplified for now)
-                val output = executeShellCommand(command)
-                _terminalOutput.value += output + "\n"
-
-                // Translate output
-                if (_isTranslationVisible.value) {
-                    translateOutput(command, output)
-                }
-            } catch (e: SecurityException) {
-                _terminalOutput.value += "❌ Permission denied: ${e.message}\n"
-            } catch (e: java.io.IOException) {
-                _terminalOutput.value += "❌ I/O Error: ${e.message}\n"
-            } catch (e: Exception) {
-                _terminalOutput.value += "❌ Error: ${e.javaClass.simpleName} - ${e.message}\n"
-                e.printStackTrace()
+            // Translate output if enabled
+            // Note: Translation now happens after output appears
+            if (_isTranslationVisible.value) {
+                // Delay to let output accumulate
+                kotlinx.coroutines.delay(500)
+                val recentOutput = _terminalOutput.value.takeLast(1000)
+                translateOutput(command, recentOutput)
             }
         }
-    }
-
-    /**
-     * Execute shell command using ShellExecutor
-     */
-    private suspend fun executeShellCommand(command: String): String {
-        return try {
-            // Use ShellExecutor if available, fallback to legacy implementation
-            val executor = shellExecutor
-            if (executor != null) {
-                val result = executor.execute(command)
-                buildString {
-                    append(result.output)
-                    if (result.exitCode != 0) {
-                        append("\n⚠️  Exit code: ${result.exitCode}")
-                    }
-                    // Add shell type info in debug mode
-                    // append("\n[${result.shellType.getDisplayName()}]")
-                }
-            } else {
-                // Legacy fallback
-                executeLegacyShellCommand(command)
-            }
-        } catch (e: SecurityException) {
-            throw e
-        } catch (e: java.io.IOException) {
-            throw e
-        } catch (e: Exception) {
-            "⚠️  Command execution failed: ${e.message}"
-        }
-    }
-
-    /**
-     * Legacy shell command execution (fallback)
-     */
-    private fun executeLegacyShellCommand(command: String): String {
-        val appHome = appContext?.filesDir?.absolutePath ?: "/data/local/tmp"
-
-        val processBuilder = ProcessBuilder("/system/bin/sh", "-c", command)
-        val env = processBuilder.environment()
-        env["HOME"] = appHome
-        env["TMPDIR"] = appContext?.cacheDir?.absolutePath ?: "/data/local/tmp"
-        processBuilder.directory(File(appHome))
-        processBuilder.redirectErrorStream(true)
-
-        val process = processBuilder.start()
-        val output = StringBuilder()
-        val reader = process.inputStream.bufferedReader()
-
-        var line: String?
-        while (reader.readLine().also { line = it } != null) {
-            output.append(line).append("\n")
-        }
-
-        val exitCode = process.waitFor()
-        if (exitCode != 0) {
-            output.append("\n⚠️  Exit code: $exitCode")
-        }
-
-        return output.toString()
     }
 
     /**
      * Get current shell type info
      */
     fun getShellInfo(): String {
-        return shellExecutor?.getShellInfo() ?: "Shell not initialized"
+        return shellSession?.getShellInfo() ?: "Shell not initialized"
     }
 
     /**
@@ -451,6 +394,14 @@ class TerminalViewModel : ViewModel() {
         _searchQuery.value = ""
         _searchResults.value = emptyList()
         _currentSearchIndex.value = 0
+    }
+
+    /**
+     * Clean up shell session when ViewModel is destroyed
+     */
+    override fun onCleared() {
+        super.onCleared()
+        shellSession?.stop()
     }
 }
 
