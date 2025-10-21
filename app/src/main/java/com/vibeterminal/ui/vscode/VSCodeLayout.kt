@@ -55,8 +55,26 @@ fun VSCodeLayout(
     chatViewModel: ChatViewModel = viewModel(),
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val terminalOutput by terminalViewModel.terminalOutput.collectAsState()
     val isKeyboardVisible by terminalViewModel.isKeyboardVisible.collectAsState()
+
+    val settingsViewModel = remember {
+        com.vibeterminal.ui.settings.SettingsViewModel(context)
+    }
+    val llmApiKey by settingsViewModel.llmApiKey.collectAsState()
+    val useAiTranslation by settingsViewModel.useAiTranslation.collectAsState()
+
+    // Initialize ViewModel with context - CRITICAL!
+    LaunchedEffect(Unit) {
+        val patternsDir = java.io.File(context.filesDir, "translations")
+        terminalViewModel.initialize(
+            patternsDir = patternsDir,
+            context = context,
+            apiKey = llmApiKey,
+            useAi = useAiTranslation
+        )
+    }
 
     var selectedMenu by remember { mutableStateOf<MenuSection?>(null) }
     var showPopup by remember { mutableStateOf<MenuSection?>(null) }

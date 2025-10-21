@@ -75,6 +75,9 @@ class TerminalViewModel : ViewModel() {
     private var useAiTranslation: Boolean = false
 
     fun initialize(patternsDir: File, context: Context? = null, apiKey: String? = null, useAi: Boolean = false) {
+        // Clean up existing session if any
+        shellSession?.stop()
+
         translationEngine = TranslationEngine(
             patternsDir = patternsDir,
             llmApiKey = apiKey
@@ -86,17 +89,21 @@ class TerminalViewModel : ViewModel() {
 
         // Initialize Termux shell session
         context?.applicationContext?.let { ctx ->
-            shellSession = TermuxShellSession(ctx, viewModelScope).apply {
-                if (start()) {
-                    // Sync shell output to terminal output
-                    viewModelScope.launch {
-                        output.collect { newOutput ->
-                            _terminalOutput.value = newOutput
-                        }
-                    }
-                } else {
-                    _terminalOutput.value += "⚠️  Failed to start shell session\n"
+            _terminalOutput.value = ""  // Clear previous output
+
+            shellSession = TermuxShellSession(ctx, viewModelScope)
+
+            // Start collecting output BEFORE starting the shell
+            // This ensures we capture all initialization messages
+            viewModelScope.launch {
+                shellSession?.output?.collect { newOutput ->
+                    _terminalOutput.value = newOutput
                 }
+            }
+
+            // Now start the shell session
+            if (!shellSession!!.start()) {
+                _terminalOutput.value += "⚠️  Failed to start shell session\n"
             }
         }
     }
