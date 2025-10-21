@@ -31,8 +31,23 @@ fun TerminalScreen(
     viewModel: TerminalViewModel = viewModel(),
     settingsViewModel: com.vibeterminal.ui.settings.SettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
+    val context = LocalContext.current
     val terminalOutput by viewModel.terminalOutput.collectAsState()
     val isKeyboardVisible by viewModel.isKeyboardVisible.collectAsState()
+
+    val llmApiKey by settingsViewModel.llmApiKey.collectAsState()
+    val useAiTranslation by settingsViewModel.useAiTranslation.collectAsState()
+
+    // Initialize ViewModel with context
+    LaunchedEffect(Unit) {
+        val patternsDir = java.io.File(context.filesDir, "translations")
+        viewModel.initialize(
+            patternsDir = patternsDir,
+            context = context,
+            apiKey = llmApiKey,
+            useAi = useAiTranslation
+        )
+    }
 
     Scaffold(
         topBar = {
