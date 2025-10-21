@@ -30,7 +30,7 @@ class CLIToolsManager(private val context: Context) {
     private val binDir = File(context.filesDir, "bin")
 
     // Available AI CLI tools (GitHub releases or direct downloads)
-    val availableTools = listOf(
+    private val availableTools = listOf(
         CLITool(
             id = "claude-cli",
             name = "Claude CLI",
