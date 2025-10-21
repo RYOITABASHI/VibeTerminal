@@ -4,11 +4,14 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -24,10 +27,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vibeterminal.ui.keyboard.VirtualKeyboard
 import com.vibeterminal.ui.keyboard.SpecialKey
 import kotlinx.coroutines.launch
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.imeNestedScroll
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun TerminalScreen(
     viewModel: TerminalViewModel = viewModel(),
