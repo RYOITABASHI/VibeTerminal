@@ -41,6 +41,20 @@ class TermuxShellSession(
      */
     fun start(): Boolean {
         return try {
+            _output.value += "🔧 Starting shell session...\n"
+            _output.value += "📍 Checking Termux bash: $TERMUX_BASH\n"
+
+            val bashExists = File(TERMUX_BASH).exists()
+            _output.value += if (bashExists) {
+                "✅ Termux bash found\n"
+            } else {
+                "⚠️  Termux bash not found, will use fallback\n"
+            }
+
+            if (!bashExists) {
+                return startFallbackShell()
+            }
+
             // Start bash in interactive mode (-i) without login (-l can cause issues)
             val processBuilder = ProcessBuilder(TERMUX_BASH, "-i")
 
@@ -66,13 +80,15 @@ class TermuxShellSession(
 
             processBuilder.redirectErrorStream(true)
 
+            _output.value += "🚀 Launching Termux bash...\n"
+
             // Start the shell process
             shellProcess = processBuilder.start()
             _isRunning.value = true
 
-            // Add welcome message
-            _output.value += "VibeTerminal - Termux Shell Session\n"
-            _output.value += "Working directory: ${workDir.absolutePath}\n\n"
+            _output.value += "✅ Shell process started\n"
+            _output.value += "📂 Working directory: ${workDir.absolutePath}\n"
+            _output.value += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
 
             // Start reading output in background
             startOutputReader()
@@ -87,7 +103,7 @@ class TermuxShellSession(
             true
         } catch (e: Exception) {
             _output.value += "❌ Failed to start Termux shell: ${e.message}\n"
-            _output.value += "⚠️  Make sure Termux is installed and up to date.\n\n"
+            _output.value += "📋 Stack trace: ${e.stackTraceToString()}\n\n"
 
             // Try fallback to system shell
             startFallbackShell()
@@ -99,6 +115,8 @@ class TermuxShellSession(
      */
     private fun startFallbackShell(): Boolean {
         return try {
+            _output.value += "🔄 Starting system shell fallback...\n"
+
             // Start sh in interactive mode
             val processBuilder = ProcessBuilder("/system/bin/sh", "-i")
 
@@ -111,12 +129,15 @@ class TermuxShellSession(
             processBuilder.directory(context.filesDir)
             processBuilder.redirectErrorStream(true)
 
+            _output.value += "🚀 Launching system shell...\n"
+
             shellProcess = processBuilder.start()
             _isRunning.value = true
             _currentDirectory.value = context.filesDir.absolutePath
 
-            _output.value += "⚠️  Using system shell (limited functionality)\n"
-            _output.value += "Working directory: ${context.filesDir.absolutePath}\n\n"
+            _output.value += "✅ System shell started\n"
+            _output.value += "📂 Working directory: ${context.filesDir.absolutePath}\n"
+            _output.value += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
 
             startOutputReader()
 
@@ -130,6 +151,7 @@ class TermuxShellSession(
             true
         } catch (e: Exception) {
             _output.value += "❌ Failed to start fallback shell: ${e.message}\n"
+            _output.value += "📋 Stack trace: ${e.stackTraceToString()}\n"
             false
         }
     }
@@ -152,24 +174,15 @@ class TermuxShellSession(
     private fun startOutputReader() {
         scope.launch(Dispatchers.IO) {
             try {
-                val reader = BufferedReader(InputStreamReader(shellProcess?.inputStream))
-                val buffer = StringBuilder()
-                var char: Int
+                val inputStream = shellProcess?.inputStream ?: return@launch
+                val buffer = ByteArray(1024)
 
-                while (reader.read().also { char = it } != -1) {
-                    buffer.append(char.toChar())
+                while (true) {
+                    val bytesRead = inputStream.read(buffer)
+                    if (bytesRead == -1) break
 
-                    // Flush output periodically for real-time display
-                    if (char == '\n'.code || buffer.length > 1000) {
-                        val output = buffer.toString()
-                        _output.value += output
-                        buffer.clear()
-                    }
-                }
-
-                // Flush any remaining output
-                if (buffer.isNotEmpty()) {
-                    _output.value += buffer.toString()
+                    val output = String(buffer, 0, bytesRead)
+                    _output.value += output
                 }
 
             } catch (e: Exception) {
@@ -190,12 +203,14 @@ class TermuxShellSession(
         }
 
         try {
+            _output.value += "$ $command\n"  // Echo command to terminal
             shellProcess?.outputStream?.apply {
                 write("$command\n".toByteArray())
                 flush()
             }
         } catch (e: Exception) {
             _output.value += "❌ Command execution error: ${e.message}\n"
+            _output.value += "📋 Stack trace: ${e.stackTraceToString()}\n"
         }
     }
 
