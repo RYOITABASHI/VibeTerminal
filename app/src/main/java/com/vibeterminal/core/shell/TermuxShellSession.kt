@@ -41,7 +41,8 @@ class TermuxShellSession(
      */
     fun start(): Boolean {
         return try {
-            val processBuilder = ProcessBuilder(TERMUX_BASH, "-l")
+            // Start bash in interactive mode (-i) without login (-l can cause issues)
+            val processBuilder = ProcessBuilder(TERMUX_BASH, "-i")
 
             // Set Termux environment variables
             processBuilder.environment().apply {
@@ -69,16 +70,23 @@ class TermuxShellSession(
             shellProcess = processBuilder.start()
             _isRunning.value = true
 
+            // Add welcome message
+            _output.value += "VibeTerminal - Termux Shell Session\n"
+            _output.value += "Working directory: ${workDir.absolutePath}\n\n"
+
             // Start reading output in background
             startOutputReader()
 
-            // Add welcome message
-            _output.value = "VibeTerminal - Termux Shell Session\n"
-            _output.value += "Working directory: ${workDir.absolutePath}\n\n"
+            // Set a simple prompt and send initial newline to trigger it
+            shellProcess?.outputStream?.apply {
+                write("PS1='$ '\n".toByteArray())
+                write("\n".toByteArray())
+                flush()
+            }
 
             true
         } catch (e: Exception) {
-            _output.value = "❌ Failed to start Termux shell: ${e.message}\n"
+            _output.value += "❌ Failed to start Termux shell: ${e.message}\n"
             _output.value += "⚠️  Make sure Termux is installed and up to date.\n\n"
 
             // Try fallback to system shell
@@ -91,7 +99,8 @@ class TermuxShellSession(
      */
     private fun startFallbackShell(): Boolean {
         return try {
-            val processBuilder = ProcessBuilder("/system/bin/sh")
+            // Start sh in interactive mode
+            val processBuilder = ProcessBuilder("/system/bin/sh", "-i")
 
             processBuilder.environment().apply {
                 put("HOME", context.filesDir.absolutePath)
@@ -106,10 +115,17 @@ class TermuxShellSession(
             _isRunning.value = true
             _currentDirectory.value = context.filesDir.absolutePath
 
-            startOutputReader()
-
             _output.value += "⚠️  Using system shell (limited functionality)\n"
             _output.value += "Working directory: ${context.filesDir.absolutePath}\n\n"
+
+            startOutputReader()
+
+            // Set a simple prompt and send initial newline
+            shellProcess?.outputStream?.apply {
+                write("PS1='$ '\n".toByteArray())
+                write("\n".toByteArray())
+                flush()
+            }
 
             true
         } catch (e: Exception) {
