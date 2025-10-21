@@ -191,14 +191,12 @@ fun TerminalView(
         }
     }
 
-    // Optimize recomposition by tracking output changes
-    val outputState by remember(output) {
-        mutableStateOf(output)
-    }
+    // Scroll state for terminal output
+    val scrollState = androidx.compose.foundation.rememberScrollState()
 
-    // Auto-scroll effect when output updates
+    // Auto-scroll to bottom when output updates
     LaunchedEffect(output) {
-        // Future: Implement auto-scroll to bottom when output changes
+        scrollState.animateScrollTo(scrollState.maxValue)
     }
 
     Column(
@@ -220,6 +218,7 @@ fun TerminalView(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(4.dp)
+                    .verticalScroll(scrollState)
             )
         }
 
