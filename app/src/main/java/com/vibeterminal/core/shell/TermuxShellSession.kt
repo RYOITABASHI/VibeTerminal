@@ -42,18 +42,10 @@ class TermuxShellSession(
     fun start(): Boolean {
         return try {
             _output.value += "🔧 Starting shell session...\n"
-            _output.value += "📍 Checking Termux bash: $TERMUX_BASH\n"
+            _output.value += "📍 Trying Termux bash: $TERMUX_BASH\n"
 
-            val bashExists = File(TERMUX_BASH).exists()
-            _output.value += if (bashExists) {
-                "✅ Termux bash found\n"
-            } else {
-                "⚠️  Termux bash not found, will use fallback\n"
-            }
-
-            if (!bashExists) {
-                return startFallbackShell()
-            }
+            // Don't check File.exists() - it returns false on Android 10+ due to sandboxing
+            // Instead, try to execute directly and fallback if it fails
 
             // Start bash in interactive mode (-i) without login (-l can cause issues)
             val processBuilder = ProcessBuilder(TERMUX_BASH, "-i")
