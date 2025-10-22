@@ -8,6 +8,7 @@ import com.vibeterminal.core.translator.TranslationEngine
 import com.vibeterminal.core.translator.TranslatedOutput
 import com.vibeterminal.core.shell.TermuxShellSession
 import com.vibeterminal.core.termux.TermuxCommandExecutor
+import com.vibeterminal.core.nodejs.NodeJsInstaller
 import com.vibeterminal.ui.ime.ComposingTextState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -49,6 +50,9 @@ class TerminalViewModel : ViewModel() {
 
     // Termux command executor for CLI tools
     private var termuxExecutor: TermuxCommandExecutor? = null
+
+    // Node.js installer
+    private var nodeInstaller: NodeJsInstaller? = null
 
     // File picker state
     private val _filePickerTrigger = MutableStateFlow(FilePickerType.NONE)
@@ -97,6 +101,26 @@ class TerminalViewModel : ViewModel() {
 
             shellSession = TermuxShellSession(ctx, viewModelScope)
             termuxExecutor = TermuxCommandExecutor(ctx, viewModelScope)
+            nodeInstaller = NodeJsInstaller(ctx)
+
+            // Setup Node.js if not installed
+            viewModelScope.launch {
+                if (!nodeInstaller!!.isInstalled()) {
+                    _terminalOutput.value += "📦 Setting up Node.js environment...\n"
+                    nodeInstaller!!.install().fold(
+                        onSuccess = { msg ->
+                            _terminalOutput.value += "✅ $msg\n"
+                            _terminalOutput.value += "💡 You can now install CLI tools with: npm install -g <package>\n\n"
+                        },
+                        onFailure = { error ->
+                            _terminalOutput.value += "❌ Node.js setup failed: ${error.message}\n\n"
+                        }
+                    )
+                } else {
+                    val version = nodeInstaller!!.getNodeVersion()
+                    _terminalOutput.value += "✅ Node.js $version ready\n\n"
+                }
+            }
 
             // Start collecting output BEFORE starting the shell
             // This ensures we capture all initialization messages
