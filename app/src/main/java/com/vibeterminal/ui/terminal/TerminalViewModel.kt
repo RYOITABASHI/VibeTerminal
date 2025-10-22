@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.vibeterminal.core.translator.TranslationEngine
 import com.vibeterminal.core.translator.TranslatedOutput
 import com.vibeterminal.core.shell.TermuxShellSession
+import com.vibeterminal.core.termux.TermuxCommandExecutor
 import com.vibeterminal.ui.ime.ComposingTextState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -45,6 +46,9 @@ class TerminalViewModel : ViewModel() {
 
     // Termux shell session (replaces ShellExecutor)
     private var shellSession: TermuxShellSession? = null
+
+    // Termux command executor for CLI tools
+    private var termuxExecutor: TermuxCommandExecutor? = null
 
     // File picker state
     private val _filePickerTrigger = MutableStateFlow(FilePickerType.NONE)
@@ -92,6 +96,7 @@ class TerminalViewModel : ViewModel() {
             _terminalOutput.value = ""  // Clear previous output
 
             shellSession = TermuxShellSession(ctx, viewModelScope)
+            termuxExecutor = TermuxCommandExecutor(ctx, viewModelScope)
 
             // Start collecting output BEFORE starting the shell
             // This ensures we capture all initialization messages
@@ -129,8 +134,25 @@ class TerminalViewModel : ViewModel() {
         viewModelScope.launch {
             _currentCommand.value = command
 
-            // Send command to shell session
-            shellSession?.executeCommand(command)
+            // Check if this is a Termux CLI command (claude, codex, etc.)
+            if (termuxExecutor?.shouldUseTermux(command) == true) {
+                // Try to execute in Termux first
+                val success = termuxExecutor?.executeInTermux(command)
+                if (success == true) {
+                    // Command sent to Termux
+                    // Note: We may not get output back directly
+                    _terminalOutput.value += "📱 Executing in Termux: $command\n"
+                    _terminalOutput.value += "⚠️  Output will appear in Termux app\n"
+                    _terminalOutput.value += "💡 Tip: Check Termux notifications for results\n\n"
+                } else {
+                    // Fallback to shell session
+                    _terminalOutput.value += "⚠️  Termux not available, trying in system shell...\n"
+                    shellSession?.executeCommand(command)
+                }
+            } else {
+                // Regular shell command
+                shellSession?.executeCommand(command)
+            }
 
             // Translate output if enabled
             // Note: Translation now happens after output appears

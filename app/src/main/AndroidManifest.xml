@@ -23,6 +23,11 @@
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>
+        <!-- Query Termux for CLI tool integration -->
+        <package android:name="com.termux" />
+        <intent>
+            <action android:name="com.termux.RUN_COMMAND" />
+        </intent>
     </queries>
 
     <application

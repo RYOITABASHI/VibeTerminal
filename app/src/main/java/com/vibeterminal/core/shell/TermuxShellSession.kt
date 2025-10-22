@@ -114,7 +114,12 @@ class TermuxShellSession(
             processBuilder.environment().apply {
                 put("HOME", context.filesDir.absolutePath)
                 put("TMPDIR", context.cacheDir.absolutePath)
-                put("PATH", "${context.filesDir.absolutePath}/bin:${get("PATH") ?: ""}")
+                // Add Termux bin directories to PATH
+                val termuxBin = "$TERMUX_PREFIX/bin:$TERMUX_PREFIX/bin/applets"
+                val appBin = "${context.filesDir.absolutePath}/bin"
+                put("PATH", "$termuxBin:$appBin:${get("PATH") ?: ""}")
+                // Add Node.js module path
+                put("NODE_PATH", "$TERMUX_PREFIX/lib/node_modules")
             }
 
             processBuilder.directory(context.filesDir)
