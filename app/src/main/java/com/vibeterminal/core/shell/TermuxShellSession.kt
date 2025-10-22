@@ -47,8 +47,8 @@ class TermuxShellSession(
             // Don't check File.exists() - it returns false on Android 10+ due to sandboxing
             // Instead, try to execute directly and fallback if it fails
 
-            // Start bash in interactive mode (-i) without login (-l can cause issues)
-            val processBuilder = ProcessBuilder(TERMUX_BASH, "-i")
+            // Start bash without interactive mode to avoid tty errors
+            val processBuilder = ProcessBuilder(TERMUX_BASH)
 
             // Set Termux environment variables
             processBuilder.environment().apply {
@@ -85,10 +85,9 @@ class TermuxShellSession(
             // Start reading output in background
             startOutputReader()
 
-            // Set a simple prompt and send initial newline to trigger it
+            // Set a simple prompt (no extra newlines to avoid duplicate prompts)
             shellProcess?.outputStream?.apply {
                 write("PS1='$ '\n".toByteArray())
-                write("\n".toByteArray())
                 flush()
             }
 
@@ -109,8 +108,8 @@ class TermuxShellSession(
         return try {
             _output.value += "🔄 Starting system shell fallback...\n"
 
-            // Start sh in interactive mode
-            val processBuilder = ProcessBuilder("/system/bin/sh", "-i")
+            // Start sh without interactive mode to avoid tty errors
+            val processBuilder = ProcessBuilder("/system/bin/sh")
 
             processBuilder.environment().apply {
                 put("HOME", context.filesDir.absolutePath)
@@ -133,10 +132,9 @@ class TermuxShellSession(
 
             startOutputReader()
 
-            // Set a simple prompt and send initial newline
+            // Set a simple prompt (no extra newlines to avoid duplicate prompts)
             shellProcess?.outputStream?.apply {
                 write("PS1='$ '\n".toByteArray())
-                write("\n".toByteArray())
                 flush()
             }
 
