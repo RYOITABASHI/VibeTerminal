@@ -20,34 +20,34 @@ class NodeJsInstaller(private val context: Context) {
 #!/system/bin/sh
 # VibeTerminal Node.js Setup Script
 
-NODE_HOME="$1"
-NODE_BIN="$NODE_HOME/bin"
-NODE="$NODE_BIN/node"
+NODE_HOME="${'$'}1"
+NODE_BIN="${'$'}NODE_HOME/bin"
+NODE="${'$'}NODE_BIN/node"
 
 echo "Setting up Node.js in VibeTerminal..."
 
 # Create necessary directories
-mkdir -p "$NODE_BIN"
-mkdir -p "$NODE_HOME/lib"
+mkdir -p "${'$'}NODE_BIN"
+mkdir -p "${'$'}NODE_HOME/lib"
 
 # Download npm (minimal installation)
 echo "Installing npm..."
-cd "$NODE_HOME"
+cd "${'$'}NODE_HOME"
 
 # Create minimal npm wrapper
-cat > "$NODE_BIN/npm" << 'NPM_EOF'
+cat > "${'$'}NODE_BIN/npm" << 'NPM_EOF'
 #!/system/bin/sh
-NODE_HOME="$(dirname $(dirname $0))"
-NODE="$NODE_HOME/bin/node"
-NPM_CLI="$NODE_HOME/lib/node_modules/npm/bin/npm-cli.js"
+NODE_HOME="${'$'}(dirname ${'$'}(dirname ${'$'}0))"
+NODE="${'$'}NODE_HOME/bin/node"
+NPM_CLI="${'$'}NODE_HOME/lib/node_modules/npm/bin/npm-cli.js"
 
-if [ ! -f "$NPM_CLI" ]; then
+if [ ! -f "${'$'}NPM_CLI" ]; then
     echo "npm not installed. Installing..."
-    mkdir -p "$NODE_HOME/lib/node_modules"
-    cd "$NODE_HOME/lib/node_modules"
+    mkdir -p "${'$'}NODE_HOME/lib/node_modules"
+    cd "${'$'}NODE_HOME/lib/node_modules"
 
     # Use node to download and extract npm
-    $NODE -e "
+    ${'$'}NODE -e "
     const https = require('https');
     const fs = require('fs');
     const tar = require('tar');
@@ -58,23 +58,23 @@ if [ ! -f "$NPM_CLI" ]; then
     "
 fi
 
-exec "$NODE" "$NPM_CLI" "$@"
+exec "${'$'}NODE" "${'$'}NPM_CLI" "${'$'}@"
 NPM_EOF
 
-chmod +x "$NODE_BIN/npm"
+chmod +x "${'$'}NODE_BIN/npm"
 
 # Create npx wrapper
-cat > "$NODE_BIN/npx" << 'NPX_EOF'
+cat > "${'$'}NODE_BIN/npx" << 'NPX_EOF'
 #!/system/bin/sh
-NODE_HOME="$(dirname $(dirname $0))"
-exec "$NODE_HOME/bin/npm" exec -- "$@"
+NODE_HOME="${'$'}(dirname ${'$'}(dirname ${'$'}0))"
+exec "${'$'}NODE_HOME/bin/npm" exec -- "${'$'}@"
 NPX_EOF
 
-chmod +x "$NODE_BIN/npx"
+chmod +x "${'$'}NODE_BIN/npx"
 
 echo "Node.js setup complete!"
-echo "Node: $NODE"
-echo "npm: $NODE_BIN/npm"
+echo "Node: ${'$'}NODE"
+echo "npm: ${'$'}NODE_BIN/npm"
 """
     }
 
