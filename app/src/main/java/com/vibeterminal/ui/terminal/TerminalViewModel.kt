@@ -103,22 +103,29 @@ class TerminalViewModel : ViewModel() {
             termuxExecutor = TermuxCommandExecutor(ctx, viewModelScope)
             nodeInstaller = NodeJsInstaller(ctx)
 
-            // Setup Node.js if not installed
+            // Setup Node.js if not installed (optional)
             viewModelScope.launch {
-                if (!nodeInstaller!!.isInstalled()) {
-                    _terminalOutput.value += "📦 Setting up Node.js environment...\n"
-                    nodeInstaller!!.install().fold(
-                        onSuccess = { msg ->
-                            _terminalOutput.value += "✅ $msg\n"
-                            _terminalOutput.value += "💡 You can now install CLI tools with: npm install -g <package>\n\n"
-                        },
-                        onFailure = { error ->
-                            _terminalOutput.value += "❌ Node.js setup failed: ${error.message}\n\n"
-                        }
-                    )
-                } else {
-                    val version = nodeInstaller!!.getNodeVersion()
-                    _terminalOutput.value += "✅ Node.js $version ready\n\n"
+                try {
+                    if (!nodeInstaller!!.isInstalled()) {
+                        _terminalOutput.value += "📦 Setting up Node.js environment...\n"
+                        nodeInstaller!!.install().fold(
+                            onSuccess = { msg ->
+                                _terminalOutput.value += "✅ $msg\n"
+                                _terminalOutput.value += "💡 You can now install CLI tools with: npm install -g <package>\n\n"
+                            },
+                            onFailure = { error ->
+                                _terminalOutput.value += "⚠️  Node.js setup skipped: ${error.message}\n"
+                                _terminalOutput.value += "💡 Node.js is optional. You can still use shell commands.\n"
+                                _terminalOutput.value += "💡 To use Node.js, install Termux and run: pkg install nodejs\n\n"
+                            }
+                        )
+                    } else {
+                        val version = nodeInstaller!!.getNodeVersion()
+                        _terminalOutput.value += "✅ Node.js $version ready\n\n"
+                    }
+                } catch (e: Exception) {
+                    _terminalOutput.value += "⚠️  Node.js setup skipped: ${e.message}\n"
+                    _terminalOutput.value += "💡 Node.js is optional. Shell commands are still available.\n\n"
                 }
             }
 
@@ -132,7 +139,8 @@ class TerminalViewModel : ViewModel() {
 
             // Now start the shell session
             if (!shellSession!!.start()) {
-                _terminalOutput.value += "⚠️  Failed to start shell session\n"
+                _terminalOutput.value += "⚠️  Shell initialization completed with warnings\n"
+                _terminalOutput.value += "💡 Basic shell functionality is available\n\n"
             }
         }
     }

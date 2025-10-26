@@ -93,8 +93,8 @@ class TermuxShellSession(
 
             true
         } catch (e: Exception) {
-            _output.value += "❌ Failed to start Termux shell: ${e.message}\n"
-            _output.value += "📋 Stack trace: ${e.stackTraceToString()}\n\n"
+            _output.value += "⚠️  Termux bash not available: ${e.message}\n"
+            _output.value += "💡 Termux is optional. Falling back to system shell...\n\n"
 
             // Try fallback to system shell
             startFallbackShell()
@@ -106,7 +106,7 @@ class TermuxShellSession(
      */
     private fun startFallbackShell(): Boolean {
         return try {
-            _output.value += "🔄 Starting system shell fallback...\n"
+            _output.value += "🔄 Starting system shell...\n"
 
             // Start sh without interactive mode to avoid tty errors
             val processBuilder = ProcessBuilder("/system/bin/sh")
@@ -147,8 +147,9 @@ class TermuxShellSession(
 
             true
         } catch (e: Exception) {
-            _output.value += "❌ Failed to start fallback shell: ${e.message}\n"
-            _output.value += "📋 Stack trace: ${e.stackTraceToString()}\n"
+            _output.value += "❌ Critical error: Failed to start shell\n"
+            _output.value += "📋 Error details: ${e.message}\n"
+            _output.value += "💡 Please ensure your Android version is supported (API 26+)\n\n"
             false
         }
     }

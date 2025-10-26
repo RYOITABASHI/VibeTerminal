@@ -56,6 +56,15 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+        // Don't compress large binary files in assets
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
+    // Ensure assets are included and not compressed
+    androidResources {
+        noCompress += listOf("node", "")
     }
 }
 
