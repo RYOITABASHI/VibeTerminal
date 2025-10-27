@@ -41,8 +41,8 @@ class TermuxShellSession(
      */
     fun start(): Boolean {
         return try {
-            _output.value += "🔧 Starting shell session...\n"
-            _output.value += "📍 Trying Termux bash: $TERMUX_BASH\n"
+            _output.value += "🔧 Starting enhanced shell session...\n"
+            _output.value += "📍 Checking for Termux bash: $TERMUX_BASH\n"
 
             // Don't check File.exists() - it returns false on Android 10+ due to sandboxing
             // Instead, try to execute directly and fallback if it fails
@@ -78,8 +78,9 @@ class TermuxShellSession(
             shellProcess = processBuilder.start()
             _isRunning.value = true
 
-            _output.value += "✅ Shell process started\n"
+            _output.value += "✅ Termux bash started successfully\n"
             _output.value += "📂 Working directory: ${workDir.absolutePath}\n"
+            _output.value += "💡 Full Termux environment available\n"
             _output.value += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
 
             // Start reading output in background
@@ -93,8 +94,8 @@ class TermuxShellSession(
 
             true
         } catch (e: Exception) {
-            _output.value += "⚠️  Termux bash not available: ${e.message}\n"
-            _output.value += "💡 Termux is optional. Falling back to system shell...\n\n"
+            _output.value += "ℹ️  Termux not installed: ${e.message?.take(50)}\n"
+            _output.value += "💡 Using enhanced system shell with Node.js support\n\n"
 
             // Try fallback to system shell
             startFallbackShell()
@@ -133,8 +134,9 @@ class TermuxShellSession(
             _isRunning.value = true
             _currentDirectory.value = context.filesDir.absolutePath
 
-            _output.value += "✅ System shell started\n"
+            _output.value += "✅ Enhanced shell started\n"
             _output.value += "📂 Working directory: ${context.filesDir.absolutePath}\n"
+            _output.value += "🔧 Node.js and npm available via PATH\n"
             _output.value += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
 
             startOutputReader()

@@ -90,16 +90,58 @@ echo "npm: ${'$'}NODE_BIN/npm"
      */
     suspend fun install(): Result<String> = withContext(Dispatchers.IO) {
         try {
+            // Create directories
+            nodeBin.mkdirs()
+
+            // Check if node binary exists in assets
+            val assetPath = "node/bin/node"
+            val assetExists = try {
+                context.assets.list("node/bin")?.contains("node") == true
+            } catch (e: Exception) {
+                false
+            }
+
+            if (!assetExists) {
+                // List available assets for debugging
+                val availableAssets = try {
+                    context.assets.list("")?.joinToString(", ") ?: "none"
+                } catch (e: Exception) {
+                    "unable to list"
+                }
+                return@withContext Result.failure(
+                    Exception("Node binary not found in assets. Available: $availableAssets")
+                )
+            }
+
             // Extract node binary from assets
-            context.assets.open("node/bin/node").use { input ->
-                nodeBin.mkdirs()
+            context.assets.open(assetPath).use { input ->
                 FileOutputStream(nodeExecutable).use { output ->
-                    input.copyTo(output)
+                    val bytes = input.copyTo(output)
+                    if (bytes == 0L) {
+                        return@withContext Result.failure(Exception("Node binary is empty"))
+                    }
                 }
             }
 
             // Make executable
-            nodeExecutable.setExecutable(true, false)
+            if (!nodeExecutable.setExecutable(true, false)) {
+                return@withContext Result.failure(Exception("Failed to set executable permission"))
+            }
+
+            // Verify the binary works
+            try {
+                val testProcess = ProcessBuilder(nodeExecutable.absolutePath, "--version")
+                    .redirectErrorStream(true)
+                    .start()
+                val testOutput = testProcess.inputStream.bufferedReader().readText()
+                testProcess.waitFor()
+
+                if (testProcess.exitValue() != 0) {
+                    return@withContext Result.failure(Exception("Node binary test failed: $testOutput"))
+                }
+            } catch (e: Exception) {
+                return@withContext Result.failure(Exception("Node binary verification failed: ${e.message}"))
+            }
 
             // Run setup script
             val setupScript = File(context.cacheDir, "node_setup.sh")
@@ -118,10 +160,10 @@ echo "npm: ${'$'}NODE_BIN/npm"
             if (process.exitValue() == 0) {
                 Result.success("Node.js installed successfully\n$output")
             } else {
-                Result.failure(Exception("Setup failed: $output"))
+                Result.failure(Exception("Setup script failed: $output"))
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception("Installation error: ${e.message}\n${e.stackTraceToString()}"))
         }
     }
 

@@ -29,25 +29,43 @@ class CLIToolsManager(private val context: Context) {
 
     private val binDir = File(context.filesDir, "bin")
 
-    // Available AI CLI tools (GitHub releases or direct downloads)
+    // Available AI CLI tools (installed via npm)
     private val availableTools = listOf(
         CLITool(
             id = "claude-cli",
-            name = "Claude CLI",
-            description = "Anthropic Claude Code CLI tool",
-            executable = "claude-cli",
-            downloadUrl = "https://github.com/anthropics/claude-code/releases/download/v2.0.24/claude-cli-android-arm64",
-            version = "2.0.24",
-            sizeBytes = 15_000_000 // ~15MB
+            name = "Claude Code",
+            description = "Anthropic Claude Code - AI coding assistant",
+            executable = "claude",
+            downloadUrl = "npm:@anthropic-ai/claude-code",
+            version = "latest",
+            sizeBytes = 50_000_000 // ~50MB
         ),
         CLITool(
             id = "openai-cli",
             name = "OpenAI CLI",
-            description = "OpenAI ChatGPT/Codex CLI",
+            description = "OpenAI GPT CLI - ChatGPT from terminal",
             executable = "openai",
-            downloadUrl = "https://github.com/openai/openai-cli/releases/latest/download/openai-android-arm64",
+            downloadUrl = "npm:openai-cli",
             version = "latest",
-            sizeBytes = 10_000_000 // ~10MB
+            sizeBytes = 30_000_000 // ~30MB
+        ),
+        CLITool(
+            id = "gemini-cli",
+            name = "Google Gemini",
+            description = "Google Gemini AI CLI",
+            executable = "gemini",
+            downloadUrl = "npm:@google/generative-ai-cli",
+            version = "latest",
+            sizeBytes = 20_000_000 // ~20MB
+        ),
+        CLITool(
+            id = "codex-cli",
+            name = "GitHub Copilot CLI",
+            description = "GitHub Copilot command line tool",
+            executable = "github-copilot-cli",
+            downloadUrl = "npm:@githubnext/github-copilot-cli",
+            version = "latest",
+            sizeBytes = 25_000_000 // ~25MB
         )
     )
 
@@ -86,7 +104,7 @@ class CLIToolsManager(private val context: Context) {
     }
 
     /**
-     * Download and install a CLI tool
+     * Install a CLI tool via npm
      */
     suspend fun install(
         toolId: String,
@@ -96,6 +114,12 @@ class CLIToolsManager(private val context: Context) {
             val tool = availableTools.find { it.id == toolId }
                 ?: return@withContext Result.failure(Exception("ツールが見つかりません: $toolId"))
 
+            // Check if download URL is npm package
+            if (tool.downloadUrl.startsWith("npm:")) {
+                return@withContext installViaNpm(tool, onProgress)
+            }
+
+            // Fallback to direct download (legacy)
             // Create bin directory if not exists
             if (!binDir.exists()) {
                 binDir.mkdirs()
@@ -119,9 +143,7 @@ class CLIToolsManager(private val context: Context) {
                     onProgress(20 + (progress * 0.7).toInt(), "ダウンロード中: $progress%")
                 }
             } catch (e: Exception) {
-                // If direct download fails, try alternative installation methods
-                onProgress(30, "代替インストール: npm経由")
-                return@withContext installViaNpm(tool, onProgress)
+                return@withContext Result.failure(Exception("ダウンロード失敗: ${e.message}"))
             }
 
             onProgress(90, "インストール中: 実行権限を設定")
@@ -145,47 +167,113 @@ class CLIToolsManager(private val context: Context) {
     }
 
     /**
-     * Install via npm (fallback method)
+     * Install via npm
      */
     private suspend fun installViaNpm(
         tool: CLITool,
         onProgress: (Int, String) -> Unit
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val npmPackage = when (tool.id) {
-                "claude-cli" -> "@anthropic-ai/claude-code"
-                "openai-cli" -> "@openai/cli"
-                else -> return@withContext Result.failure(Exception("npm package not available"))
+            // Extract npm package name from downloadUrl (format: "npm:package-name")
+            val npmPackage = tool.downloadUrl.removePrefix("npm:")
+
+            onProgress(10, "準備中: Node.js確認")
+
+            // Find Node.js executable
+            val nodeExecutable = findNodeExecutable()
+                ?: return@withContext Result.failure(Exception("Node.js が見つかりません。先にNode.jsをインストールしてください。"))
+
+            val npmExecutable = findNpmExecutable()
+                ?: return@withContext Result.failure(Exception("npm が見つかりません。"))
+
+            onProgress(20, "インストール中: $npmPackage")
+
+            // Run npm install -g
+            val process = ProcessBuilder(
+                npmExecutable.absolutePath,
+                "install",
+                "-g",
+                npmPackage
+            ).apply {
+                environment().apply {
+                    put("NODE", nodeExecutable.absolutePath)
+                    put("HOME", context.filesDir.absolutePath)
+                    val nodeBin = "${context.filesDir.absolutePath}/nodejs/bin"
+                    put("PATH", "$nodeBin:${get("PATH")}")
+                }
+                directory(context.filesDir)
+                redirectErrorStream(true)
+            }.start()
+
+            // Read output with progress updates
+            val output = StringBuilder()
+            val reader = process.inputStream.bufferedReader()
+            var line: String?
+            var progressCount = 20
+
+            while (reader.readLine().also { line = it } != null) {
+                output.appendLine(line)
+                progressCount = minOf(90, progressCount + 5)
+                onProgress(progressCount, "インストール中: ${line?.take(40) ?: ""}")
             }
 
-            onProgress(40, "インストール中: npm install $npmPackage")
+            process.waitFor()
 
-            // Create package directory
-            val npmDir = File(context.filesDir, "npm")
-            if (!npmDir.exists()) {
-                npmDir.mkdirs()
+            if (process.exitValue() != 0) {
+                return@withContext Result.failure(
+                    Exception("npm install failed:\n${output.toString()}")
+                )
             }
 
-            // Create wrapper script that uses Termux npm if available
-            val wrapperScript = File(binDir, tool.executable)
-            wrapperScript.writeText("""
-                #!/system/bin/sh
-                if [ -f /data/data/com.termux/files/usr/bin/node ]; then
-                    /data/data/com.termux/files/usr/bin/node /data/data/com.termux/files/usr/lib/node_modules/$npmPackage/cli.js "$@"
-                else
-                    echo "Error: Node.js not found. Please install Termux and run 'pkg install nodejs'"
-                    exit 1
-                fi
-            """.trimIndent())
+            onProgress(95, "検証中: インストール")
 
-            wrapperScript.setExecutable(true, false)
+            // Verify the tool is accessible
+            val toolCheck = ProcessBuilder(tool.executable, "--version")
+                .apply {
+                    environment().apply {
+                        val nodeBin = "${context.filesDir.absolutePath}/nodejs/bin"
+                        put("PATH", "$nodeBin:${get("PATH")}")
+                    }
+                }
+                .redirectErrorStream(true)
+                .start()
 
-            onProgress(100, "完了: ${tool.name} ラッパースクリプト作成")
+            toolCheck.waitFor()
+
+            if (toolCheck.exitValue() != 0) {
+                onProgress(100, "警告: インストール済みだが動作確認失敗")
+            } else {
+                onProgress(100, "完了: ${tool.name} インストール成功")
+            }
 
             Result.success(Unit)
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception("npm install error: ${e.message}"))
         }
+    }
+
+    /**
+     * Find Node.js executable
+     */
+    private fun findNodeExecutable(): File? {
+        val candidates = listOf(
+            File(context.filesDir, "nodejs/bin/node"),
+            File("/data/data/com.termux/files/usr/bin/node"),
+            File("/system/bin/node")
+        )
+        return candidates.firstOrNull { it.exists() && it.canExecute() }
+    }
+
+    /**
+     * Find npm executable
+     */
+    private fun findNpmExecutable(): File? {
+        val candidates = listOf(
+            File(context.filesDir, "nodejs/bin/npm"),
+            File("/data/data/com.termux/files/usr/bin/npm"),
+            File("/system/bin/npm")
+        )
+        return candidates.firstOrNull { it.exists() && it.canExecute() }
     }
 
     /**
