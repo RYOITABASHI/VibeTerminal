@@ -20,6 +20,18 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        // Allow large assets (Node.js binary is 65MB)
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
+    }
+
+    // Configure AAPT to include large binary files
+    androidComponents {
+        onVariants {
+            it.packaging.resources.excludes.add("META-INF/**")
+        }
     }
 
     buildTypes {

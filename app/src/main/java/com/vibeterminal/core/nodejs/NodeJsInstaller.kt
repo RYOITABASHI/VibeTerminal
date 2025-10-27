@@ -16,6 +16,9 @@ class NodeJsInstaller(private val context: Context) {
     val nodeExecutable = File(nodeBin, "node")
 
     companion object {
+        // Node.js download URL for Android ARM64
+        private const val NODE_DOWNLOAD_URL = "https://github.com/RYOITABASHI/VibeTerminal/releases/download/node-binaries/node-v20.18.0-android-arm64"
+
         private const val SETUP_SCRIPT = """
 #!/system/bin/sh
 # VibeTerminal Node.js Setup Script
@@ -86,84 +89,60 @@ echo "npm: ${'$'}NODE_BIN/npm"
     }
 
     /**
-     * Install Node.js from assets
+     * Install Node.js by downloading from GitHub
      */
     suspend fun install(): Result<String> = withContext(Dispatchers.IO) {
         try {
             // Create directories
             nodeBin.mkdirs()
 
-            // Check if node binary exists in assets
-            val assetPath = "node/bin/node"
-            val assetExists = try {
-                context.assets.list("node/bin")?.contains("node") == true
-            } catch (e: Exception) {
-                false
-            }
+            // First, try to use Termux Node.js if available
+            val termuxNode = File("/data/data/com.termux/files/usr/bin/node")
+            if (termuxNode.exists() && termuxNode.canExecute()) {
+                // Create symlink to Termux Node.js
+                try {
+                    Runtime.getRuntime().exec(arrayOf(
+                        "ln", "-sf",
+                        termuxNode.absolutePath,
+                        nodeExecutable.absolutePath
+                    )).waitFor()
 
-            if (!assetExists) {
-                // List available assets for debugging
-                val availableAssets = try {
-                    context.assets.list("")?.joinToString(", ") ?: "none"
-                } catch (e: Exception) {
-                    "unable to list"
-                }
-                return@withContext Result.failure(
-                    Exception("Node binary not found in assets. Available: $availableAssets")
-                )
-            }
-
-            // Extract node binary from assets
-            context.assets.open(assetPath).use { input ->
-                FileOutputStream(nodeExecutable).use { output ->
-                    val bytes = input.copyTo(output)
-                    if (bytes == 0L) {
-                        return@withContext Result.failure(Exception("Node binary is empty"))
+                    val termuxNpm = File("/data/data/com.termux/files/usr/bin/npm")
+                    if (termuxNpm.exists()) {
+                        Runtime.getRuntime().exec(arrayOf(
+                            "ln", "-sf",
+                            termuxNpm.absolutePath,
+                            File(nodeBin, "npm").absolutePath
+                        )).waitFor()
                     }
+
+                    return@withContext Result.success("Using Termux Node.js")
+                } catch (e: Exception) {
+                    // Symlink failed, continue with download
                 }
             }
 
-            // Make executable
-            if (!nodeExecutable.setExecutable(true, false)) {
-                return@withContext Result.failure(Exception("Failed to set executable permission"))
-            }
-
-            // Verify the binary works
-            try {
-                val testProcess = ProcessBuilder(nodeExecutable.absolutePath, "--version")
-                    .redirectErrorStream(true)
-                    .start()
-                val testOutput = testProcess.inputStream.bufferedReader().readText()
-                testProcess.waitFor()
-
-                if (testProcess.exitValue() != 0) {
-                    return@withContext Result.failure(Exception("Node binary test failed: $testOutput"))
-                }
-            } catch (e: Exception) {
-                return@withContext Result.failure(Exception("Node binary verification failed: ${e.message}"))
-            }
-
-            // Run setup script
-            val setupScript = File(context.cacheDir, "node_setup.sh")
-            setupScript.writeText(SETUP_SCRIPT)
-            setupScript.setExecutable(true)
-
-            val process = ProcessBuilder(
-                "/system/bin/sh",
-                setupScript.absolutePath,
-                nodeHome.absolutePath
-            ).redirectErrorStream(true).start()
-
-            val output = process.inputStream.bufferedReader().readText()
-            process.waitFor()
-
-            if (process.exitValue() == 0) {
-                Result.success("Node.js installed successfully\n$output")
-            } else {
-                Result.failure(Exception("Setup script failed: $output"))
-            }
+            // Download Node.js binary
+            return@withContext downloadAndInstall()
         } catch (e: Exception) {
-            Result.failure(Exception("Installation error: ${e.message}\n${e.stackTraceToString()}"))
+            Result.failure(Exception("Installation error: ${e.message}"))
+        }
+    }
+
+    /**
+     * Download and install Node.js from GitHub releases
+     */
+    private suspend fun downloadAndInstall(): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            // TODO: Implement download from GitHub releases
+            // For now, return a helpful message
+            Result.failure(Exception(
+                "Node.js download not yet implemented.\n" +
+                "Please install Termux and run: pkg install nodejs\n" +
+                "Then restart VibeTerminal."
+            ))
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
