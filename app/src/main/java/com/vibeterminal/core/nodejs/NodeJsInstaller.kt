@@ -92,11 +92,11 @@ echo "npm: ${'$'}NODE_BIN/npm"
             return true
         }
 
-        // Check Termux Node.js - File.exists() may fail on Android 10+ due to sandboxing
-        // So we try to execute it instead
-        val termuxNode = File("/data/data/com.termux/files/usr/bin/node")
+        // Check Termux Node.js using shell execution
+        // This is more reliable than direct execution due to Android sandboxing
         try {
-            val process = ProcessBuilder(termuxNode.absolutePath, "--version")
+            val termuxNodePath = "/data/data/com.termux/files/usr/bin/node"
+            val process = ProcessBuilder("sh", "-c", "$termuxNodePath --version")
                 .redirectErrorStream(true)
                 .start()
             process.waitFor()
@@ -104,13 +104,10 @@ echo "npm: ${'$'}NODE_BIN/npm"
                 return true
             }
         } catch (e: Exception) {
-            // Try file check as fallback
-            if (termuxNode.exists() && termuxNode.canExecute()) {
-                return true
-            }
+            // Continue to next check
         }
 
-        // Check system Node.js using 'which' command
+        // Check system Node.js using PATH
         try {
             val process = ProcessBuilder("sh", "-c", "command -v node")
                 .redirectErrorStream(true)
@@ -135,48 +132,17 @@ echo "npm: ${'$'}NODE_BIN/npm"
             // Create directories
             nodeBin.mkdirs()
 
-            // First, try to detect Node.js via PATH (works across app boundaries)
-            try {
-                // Set up environment with Termux paths
-                val termuxPrefix = "/data/data/com.termux/files/usr"
-                val termuxBin = "$termuxPrefix/bin"
-                val appBin = "${context.filesDir.absolutePath}/bin"
-                val currentPath = System.getenv("PATH") ?: ""
-
-                val testProcess = ProcessBuilder("node", "--version")
-                    .apply {
-                        environment().apply {
-                            put("PATH", "$nodeBin:$termuxBin:$appBin:$currentPath")
-                            put("HOME", context.filesDir.absolutePath)
-                        }
-                    }
-                    .redirectErrorStream(true)
-                    .start()
-                val versionOutput = testProcess.inputStream.bufferedReader().readText().trim()
-                testProcess.waitFor()
-
-                if (testProcess.exitValue() == 0 && versionOutput.isNotEmpty()) {
-                    // Node.js is available in PATH (probably from Termux)
-                    return@withContext Result.success("Node.js $versionOutput detected in system PATH")
-                }
-            } catch (e: Exception) {
-                // ProcessBuilder failed, but check if Node.js file exists
-                // This can happen due to Android app sandboxing
-                if (isInstalled()) {
-                    // Node.js is actually installed, return success
-                    val version = getNodeVersion()
-                    return@withContext Result.success("Node.js $version detected (Termux)")
-                }
-
-                // Node.js not found anywhere
-                return@withContext Result.failure(
-                    Exception("Node.js not found. Please install Termux and run: pkg install nodejs")
-                )
+            // First, check if Node.js is already installed
+            if (isInstalled()) {
+                // Node.js is already installed, get version
+                val version = getNodeVersion()
+                return@withContext Result.success("Node.js $version detected (Termux)")
             }
 
-            // Download Node.js binary (disabled for now due to no hosting)
+            // Node.js not found anywhere - download is disabled
+            // User must install via Termux
             return@withContext Result.failure(
-                Exception("Node.js auto-download not available. Please install Termux and run: pkg install nodejs")
+                Exception("Node.js not found. Please install Termux and run: pkg install nodejs")
             )
         } catch (e: Exception) {
             Result.failure(Exception("Installation error: ${e.message}"))
@@ -314,10 +280,10 @@ echo "npm: ${'$'}NODE_BIN/npm"
         try {
             if (!isInstalled()) return@withContext null
 
-            // Try Termux Node.js directly first
-            val termuxNode = File("/data/data/com.termux/files/usr/bin/node")
+            // Try Termux Node.js using shell execution
             try {
-                val process = ProcessBuilder(termuxNode.absolutePath, "--version")
+                val termuxNodePath = "/data/data/com.termux/files/usr/bin/node"
+                val process = ProcessBuilder("sh", "-c", "$termuxNodePath --version")
                     .redirectErrorStream(true)
                     .start()
                 val version = process.inputStream.bufferedReader().readText().trim()
@@ -332,7 +298,7 @@ echo "npm: ${'$'}NODE_BIN/npm"
             // Try VibeTerminal's own Node.js
             if (nodeExecutable.exists()) {
                 try {
-                    val process = ProcessBuilder(nodeExecutable.absolutePath, "--version")
+                    val process = ProcessBuilder("sh", "-c", "${nodeExecutable.absolutePath} --version")
                         .redirectErrorStream(true)
                         .start()
                     val version = process.inputStream.bufferedReader().readText().trim()
@@ -351,7 +317,7 @@ echo "npm: ${'$'}NODE_BIN/npm"
             val appBin = "${context.filesDir.absolutePath}/bin"
             val currentPath = System.getenv("PATH") ?: ""
 
-            val process = ProcessBuilder("sh", "-c", "command -v node && node --version")
+            val process = ProcessBuilder("sh", "-c", "node --version")
                 .apply {
                     environment().apply {
                         put("PATH", "$nodeBin:$termuxBin:$appBin:$currentPath")
@@ -362,10 +328,8 @@ echo "npm: ${'$'}NODE_BIN/npm"
                 .start()
             val output = process.inputStream.bufferedReader().readText().trim()
             process.waitFor()
-            if (process.exitValue() == 0) {
-                // Extract version from output (last line should be version)
-                val version = output.lines().lastOrNull { it.startsWith("v") }
-                if (version != null) return@withContext version
+            if (process.exitValue() == 0 && output.isNotEmpty()) {
+                return@withContext output
             }
 
             null
