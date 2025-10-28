@@ -116,41 +116,48 @@ echo "npm: ${'$'}NODE_BIN/npm"
     }
 
     /**
-     * Install Node.js by downloading from GitHub
+     * Install Node.js by checking system-wide availability first
      */
     suspend fun install(): Result<String> = withContext(Dispatchers.IO) {
         try {
             // Create directories
             nodeBin.mkdirs()
 
-            // First, try to use Termux Node.js if available
-            val termuxNode = File("/data/data/com.termux/files/usr/bin/node")
-            if (termuxNode.exists() && termuxNode.canExecute()) {
-                // Create symlink to Termux Node.js
-                try {
-                    Runtime.getRuntime().exec(arrayOf(
-                        "ln", "-sf",
-                        termuxNode.absolutePath,
-                        nodeExecutable.absolutePath
-                    )).waitFor()
+            // First, try to detect Node.js via PATH (works across app boundaries)
+            try {
+                // Set up environment with Termux paths
+                val termuxPrefix = "/data/data/com.termux/files/usr"
+                val termuxBin = "$termuxPrefix/bin"
+                val appBin = "${context.filesDir.absolutePath}/bin"
+                val currentPath = System.getenv("PATH") ?: ""
 
-                    val termuxNpm = File("/data/data/com.termux/files/usr/bin/npm")
-                    if (termuxNpm.exists()) {
-                        Runtime.getRuntime().exec(arrayOf(
-                            "ln", "-sf",
-                            termuxNpm.absolutePath,
-                            File(nodeBin, "npm").absolutePath
-                        )).waitFor()
+                val testProcess = ProcessBuilder("node", "--version")
+                    .apply {
+                        environment().apply {
+                            put("PATH", "$nodeBin:$termuxBin:$appBin:$currentPath")
+                            put("HOME", context.filesDir.absolutePath)
+                        }
                     }
+                    .redirectErrorStream(true)
+                    .start()
+                val versionOutput = testProcess.inputStream.bufferedReader().readText().trim()
+                testProcess.waitFor()
 
-                    return@withContext Result.success("Using Termux Node.js")
-                } catch (e: Exception) {
-                    // Symlink failed, continue with download
+                if (testProcess.exitValue() == 0 && versionOutput.isNotEmpty()) {
+                    // Node.js is available in PATH (probably from Termux)
+                    return@withContext Result.success("Node.js $versionOutput detected in system PATH")
                 }
+            } catch (e: Exception) {
+                // Node.js not in PATH, continue with error message
+                return@withContext Result.failure(
+                    Exception("Node.js not found. Please install Termux and run: pkg install nodejs")
+                )
             }
 
-            // Download Node.js binary
-            return@withContext downloadAndInstall()
+            // Download Node.js binary (disabled for now due to no hosting)
+            return@withContext Result.failure(
+                Exception("Node.js auto-download not available. Please install Termux and run: pkg install nodejs")
+            )
         } catch (e: Exception) {
             Result.failure(Exception("Installation error: ${e.message}"))
         }
@@ -245,18 +252,23 @@ echo "npm: ${'$'}NODE_BIN/npm"
                 return@withContext Result.failure(Exception("Node.js not installed"))
             }
 
-            val npmBin = File(nodeBin, "npm")
+            // Set up environment with Termux paths
+            val termuxPrefix = "/data/data/com.termux/files/usr"
+            val termuxBin = "$termuxPrefix/bin"
+            val appBin = "${context.filesDir.absolutePath}/bin"
+            val currentPath = System.getenv("PATH") ?: ""
 
             val process = ProcessBuilder(
-                npmBin.absolutePath,
+                "npm",
                 "install",
                 "-g",
                 packageName
             ).apply {
                 environment().apply {
-                    put("NODE", nodeExecutable.absolutePath)
                     put("HOME", context.filesDir.absolutePath)
-                    put("PATH", "${nodeBin.absolutePath}:${get("PATH")}")
+                    put("PATH", "$nodeBin:$termuxBin:$appBin:$currentPath")
+                    put("NPM_CONFIG_PREFIX", termuxPrefix)
+                    put("NODE_PATH", "$termuxPrefix/lib/node_modules")
                 }
                 directory(context.filesDir)
                 redirectErrorStream(true)
@@ -282,29 +294,20 @@ echo "npm: ${'$'}NODE_BIN/npm"
         try {
             if (!isInstalled()) return@withContext null
 
-            // Try VibeTerminal's own Node.js first
-            if (nodeExecutable.exists() && nodeExecutable.canExecute()) {
-                val process = ProcessBuilder(nodeExecutable.absolutePath, "--version")
-                    .redirectErrorStream(true)
-                    .start()
-                val version = process.inputStream.bufferedReader().readText().trim()
-                process.waitFor()
-                if (process.exitValue() == 0) return@withContext version
-            }
+            // Set up environment with Termux paths
+            val termuxPrefix = "/data/data/com.termux/files/usr"
+            val termuxBin = "$termuxPrefix/bin"
+            val appBin = "${context.filesDir.absolutePath}/bin"
+            val currentPath = System.getenv("PATH") ?: ""
 
-            // Try Termux Node.js
-            val termuxNode = File("/data/data/com.termux/files/usr/bin/node")
-            if (termuxNode.exists() && termuxNode.canExecute()) {
-                val process = ProcessBuilder(termuxNode.absolutePath, "--version")
-                    .redirectErrorStream(true)
-                    .start()
-                val version = process.inputStream.bufferedReader().readText().trim()
-                process.waitFor()
-                if (process.exitValue() == 0) return@withContext version
-            }
-
-            // Try system node
+            // Try using PATH-based detection with proper environment
             val process = ProcessBuilder("node", "--version")
+                .apply {
+                    environment().apply {
+                        put("PATH", "$nodeBin:$termuxBin:$appBin:$currentPath")
+                        put("HOME", context.filesDir.absolutePath)
+                    }
+                }
                 .redirectErrorStream(true)
                 .start()
             val version = process.inputStream.bufferedReader().readText().trim()
