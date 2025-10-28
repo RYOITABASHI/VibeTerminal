@@ -103,29 +103,32 @@ class TerminalViewModel : ViewModel() {
             termuxExecutor = TermuxCommandExecutor(ctx, viewModelScope)
             nodeInstaller = NodeJsInstaller(ctx)
 
-            // Setup Node.js (optional - uses Termux if available)
+            // Setup Node.js (auto-download on first run)
             viewModelScope.launch {
                 try {
                     if (!nodeInstaller!!.isInstalled()) {
-                        _terminalOutput.value += "📦 Setting up Node.js...\n\n"
+                        _terminalOutput.value += "📦 Setting up Node.js runtime...\n"
+                        _terminalOutput.value += "⏳ Downloading Node.js (~65MB)...\n"
+                        _terminalOutput.value += "   This is a one-time download.\n\n"
 
                         nodeInstaller!!.install().fold(
                             onSuccess = { msg ->
-                                _terminalOutput.value += "✅ Node.js ready!\n"
+                                _terminalOutput.value += "✅ Node.js installed successfully!\n"
                                 val version = nodeInstaller!!.getNodeVersion() ?: "unknown"
                                 _terminalOutput.value += "📌 Version: $version\n"
-                                _terminalOutput.value += "💡 You can now install CLI tools:\n"
+                                _terminalOutput.value += "\n💡 You can now install AI CLI tools:\n"
                                 _terminalOutput.value += "   • npm install -g @anthropic-ai/claude-code\n"
                                 _terminalOutput.value += "   • npm install -g @google/gemini-cli\n"
                                 _terminalOutput.value += "   • npm install -g openai\n\n"
                             },
                             onFailure = { error ->
-                                _terminalOutput.value += "ℹ️  Node.js not available\n"
-                                _terminalOutput.value += "💡 To use AI CLI tools, install Termux:\n"
+                                _terminalOutput.value += "❌ Node.js installation failed\n"
+                                _terminalOutput.value += "📋 Error: ${error.message}\n\n"
+                                _terminalOutput.value += "💡 Alternative: Install Termux + Node.js\n"
                                 _terminalOutput.value += "   1. Install Termux from F-Droid or GitHub\n"
                                 _terminalOutput.value += "   2. Run: pkg install nodejs\n"
                                 _terminalOutput.value += "   3. Restart VibeTerminal\n\n"
-                                _terminalOutput.value += "ℹ️  Shell commands still work without Node.js\n\n"
+                                _terminalOutput.value += "ℹ️  Shell commands work without Node.js\n\n"
                             }
                         )
                     } else {
@@ -134,7 +137,7 @@ class TerminalViewModel : ViewModel() {
                         _terminalOutput.value += "💡 Install CLI tools with: npm install -g <package>\n\n"
                     }
                 } catch (e: Exception) {
-                    _terminalOutput.value += "⚠️  Node.js setup skipped: ${e.message}\n\n"
+                    _terminalOutput.value += "⚠️  Node.js setup error: ${e.message}\n\n"
                 }
             }
 

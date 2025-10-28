@@ -17,7 +17,9 @@ class NodeJsInstaller(private val context: Context) {
 
     companion object {
         // Node.js download URL for Android ARM64
-        private const val NODE_DOWNLOAD_URL = "https://github.com/RYOITABASHI/VibeTerminal/releases/download/node-binaries/node-v20.18.0-android-arm64"
+        private const val NODE_VERSION = "v20.18.0"
+        private const val NODE_DOWNLOAD_URL = "https://github.com/RYOITABASHI/VibeTerminal/releases/download/node-binaries/node-$NODE_VERSION-android-arm64"
+        private const val NODE_EXPECTED_SIZE = 65_000_000L // ~65MB
 
         private const val SETUP_SCRIPT = """
 #!/system/bin/sh
@@ -134,15 +136,78 @@ echo "npm: ${'$'}NODE_BIN/npm"
      */
     private suspend fun downloadAndInstall(): Result<String> = withContext(Dispatchers.IO) {
         try {
-            // TODO: Implement download from GitHub releases
-            // For now, return a helpful message
-            Result.failure(Exception(
-                "Node.js download not yet implemented.\n" +
-                "Please install Termux and run: pkg install nodejs\n" +
-                "Then restart VibeTerminal."
-            ))
+            // Download Node.js binary
+            val connection = java.net.URL(NODE_DOWNLOAD_URL).openConnection() as java.net.HttpURLConnection
+            connection.connectTimeout = 30000
+            connection.readTimeout = 30000
+            connection.setRequestProperty("User-Agent", "VibeTerminal")
+
+            try {
+                connection.connect()
+
+                if (connection.responseCode != java.net.HttpURLConnection.HTTP_OK) {
+                    return@withContext Result.failure(
+                        Exception("Download failed: HTTP ${connection.responseCode}")
+                    )
+                }
+
+                val fileSize = connection.contentLength.toLong()
+                val inputStream = connection.inputStream
+                val outputStream = FileOutputStream(nodeExecutable)
+
+                val buffer = ByteArray(8192)
+                var bytesRead: Int
+                var totalBytesRead = 0L
+
+                while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                    outputStream.write(buffer, 0, bytesRead)
+                    totalBytesRead += bytesRead
+                }
+
+                outputStream.flush()
+                outputStream.close()
+                inputStream.close()
+
+                // Make executable
+                if (!nodeExecutable.setExecutable(true, false)) {
+                    return@withContext Result.failure(Exception("Failed to set executable permission"))
+                }
+
+                // Verify the binary works
+                val testProcess = ProcessBuilder(nodeExecutable.absolutePath, "--version")
+                    .redirectErrorStream(true)
+                    .start()
+                val testOutput = testProcess.inputStream.bufferedReader().readText()
+                testProcess.waitFor()
+
+                if (testProcess.exitValue() != 0) {
+                    return@withContext Result.failure(Exception("Node.js verification failed: $testOutput"))
+                }
+
+                // Run setup script to install npm
+                val setupScript = File(context.cacheDir, "node_setup.sh")
+                setupScript.writeText(SETUP_SCRIPT)
+                setupScript.setExecutable(true)
+
+                val process = ProcessBuilder(
+                    "/system/bin/sh",
+                    setupScript.absolutePath,
+                    nodeHome.absolutePath
+                ).redirectErrorStream(true).start()
+
+                val output = process.inputStream.bufferedReader().readText()
+                process.waitFor()
+
+                if (process.exitValue() == 0) {
+                    Result.success("Node.js $NODE_VERSION installed successfully")
+                } else {
+                    Result.failure(Exception("npm setup failed: $output"))
+                }
+            } finally {
+                connection.disconnect()
+            }
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception("Download error: ${e.message}"))
         }
     }
 
