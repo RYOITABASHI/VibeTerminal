@@ -92,15 +92,27 @@ echo "npm: ${'$'}NODE_BIN/npm"
             return true
         }
 
-        // Check Termux Node.js
+        // Check Termux Node.js - File.exists() may fail on Android 10+ due to sandboxing
+        // So we try to execute it instead
         val termuxNode = File("/data/data/com.termux/files/usr/bin/node")
-        if (termuxNode.exists() && termuxNode.canExecute()) {
-            return true
+        try {
+            val process = ProcessBuilder(termuxNode.absolutePath, "--version")
+                .redirectErrorStream(true)
+                .start()
+            process.waitFor()
+            if (process.exitValue() == 0) {
+                return true
+            }
+        } catch (e: Exception) {
+            // Try file check as fallback
+            if (termuxNode.exists() && termuxNode.canExecute()) {
+                return true
+            }
         }
 
-        // Check system Node.js (if available)
+        // Check system Node.js using 'which' command
         try {
-            val process = ProcessBuilder("which", "node")
+            val process = ProcessBuilder("sh", "-c", "command -v node")
                 .redirectErrorStream(true)
                 .start()
             val output = process.inputStream.bufferedReader().readText().trim()
@@ -148,7 +160,15 @@ echo "npm: ${'$'}NODE_BIN/npm"
                     return@withContext Result.success("Node.js $versionOutput detected in system PATH")
                 }
             } catch (e: Exception) {
-                // Node.js not in PATH, continue with error message
+                // ProcessBuilder failed, but check if Node.js file exists
+                // This can happen due to Android app sandboxing
+                if (isInstalled()) {
+                    // Node.js is actually installed, return success
+                    val version = getNodeVersion()
+                    return@withContext Result.success("Node.js $version detected (Termux)")
+                }
+
+                // Node.js not found anywhere
                 return@withContext Result.failure(
                     Exception("Node.js not found. Please install Termux and run: pkg install nodejs")
                 )
@@ -294,14 +314,44 @@ echo "npm: ${'$'}NODE_BIN/npm"
         try {
             if (!isInstalled()) return@withContext null
 
-            // Set up environment with Termux paths
+            // Try Termux Node.js directly first
+            val termuxNode = File("/data/data/com.termux/files/usr/bin/node")
+            try {
+                val process = ProcessBuilder(termuxNode.absolutePath, "--version")
+                    .redirectErrorStream(true)
+                    .start()
+                val version = process.inputStream.bufferedReader().readText().trim()
+                process.waitFor()
+                if (process.exitValue() == 0 && version.isNotEmpty()) {
+                    return@withContext version
+                }
+            } catch (e: Exception) {
+                // Continue to next check
+            }
+
+            // Try VibeTerminal's own Node.js
+            if (nodeExecutable.exists()) {
+                try {
+                    val process = ProcessBuilder(nodeExecutable.absolutePath, "--version")
+                        .redirectErrorStream(true)
+                        .start()
+                    val version = process.inputStream.bufferedReader().readText().trim()
+                    process.waitFor()
+                    if (process.exitValue() == 0 && version.isNotEmpty()) {
+                        return@withContext version
+                    }
+                } catch (e: Exception) {
+                    // Continue to next check
+                }
+            }
+
+            // Fallback: Try using PATH-based detection
             val termuxPrefix = "/data/data/com.termux/files/usr"
             val termuxBin = "$termuxPrefix/bin"
             val appBin = "${context.filesDir.absolutePath}/bin"
             val currentPath = System.getenv("PATH") ?: ""
 
-            // Try using PATH-based detection with proper environment
-            val process = ProcessBuilder("node", "--version")
+            val process = ProcessBuilder("sh", "-c", "command -v node && node --version")
                 .apply {
                     environment().apply {
                         put("PATH", "$nodeBin:$termuxBin:$appBin:$currentPath")
@@ -310,9 +360,13 @@ echo "npm: ${'$'}NODE_BIN/npm"
                 }
                 .redirectErrorStream(true)
                 .start()
-            val version = process.inputStream.bufferedReader().readText().trim()
+            val output = process.inputStream.bufferedReader().readText().trim()
             process.waitFor()
-            if (process.exitValue() == 0) return@withContext version
+            if (process.exitValue() == 0) {
+                // Extract version from output (last line should be version)
+                val version = output.lines().lastOrNull { it.startsWith("v") }
+                if (version != null) return@withContext version
+            }
 
             null
         } catch (e: Exception) {
