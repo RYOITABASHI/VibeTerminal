@@ -87,7 +87,32 @@ echo "npm: ${'$'}NODE_BIN/npm"
      * Check if Node.js is installed
      */
     fun isInstalled(): Boolean {
-        return nodeExecutable.exists() && nodeExecutable.canExecute()
+        // Check VibeTerminal's own Node.js
+        if (nodeExecutable.exists() && nodeExecutable.canExecute()) {
+            return true
+        }
+
+        // Check Termux Node.js
+        val termuxNode = File("/data/data/com.termux/files/usr/bin/node")
+        if (termuxNode.exists() && termuxNode.canExecute()) {
+            return true
+        }
+
+        // Check system Node.js (if available)
+        try {
+            val process = ProcessBuilder("which", "node")
+                .redirectErrorStream(true)
+                .start()
+            val output = process.inputStream.bufferedReader().readText().trim()
+            process.waitFor()
+            if (process.exitValue() == 0 && output.isNotEmpty()) {
+                return true
+            }
+        } catch (e: Exception) {
+            // Ignore
+        }
+
+        return false
     }
 
     /**
@@ -257,12 +282,36 @@ echo "npm: ${'$'}NODE_BIN/npm"
         try {
             if (!isInstalled()) return@withContext null
 
-            val process = ProcessBuilder(
-                nodeExecutable.absolutePath,
-                "--version"
-            ).start()
+            // Try VibeTerminal's own Node.js first
+            if (nodeExecutable.exists() && nodeExecutable.canExecute()) {
+                val process = ProcessBuilder(nodeExecutable.absolutePath, "--version")
+                    .redirectErrorStream(true)
+                    .start()
+                val version = process.inputStream.bufferedReader().readText().trim()
+                process.waitFor()
+                if (process.exitValue() == 0) return@withContext version
+            }
 
-            process.inputStream.bufferedReader().readText().trim()
+            // Try Termux Node.js
+            val termuxNode = File("/data/data/com.termux/files/usr/bin/node")
+            if (termuxNode.exists() && termuxNode.canExecute()) {
+                val process = ProcessBuilder(termuxNode.absolutePath, "--version")
+                    .redirectErrorStream(true)
+                    .start()
+                val version = process.inputStream.bufferedReader().readText().trim()
+                process.waitFor()
+                if (process.exitValue() == 0) return@withContext version
+            }
+
+            // Try system node
+            val process = ProcessBuilder("node", "--version")
+                .redirectErrorStream(true)
+                .start()
+            val version = process.inputStream.bufferedReader().readText().trim()
+            process.waitFor()
+            if (process.exitValue() == 0) return@withContext version
+
+            null
         } catch (e: Exception) {
             null
         }
