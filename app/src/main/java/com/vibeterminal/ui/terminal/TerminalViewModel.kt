@@ -103,41 +103,39 @@ class TerminalViewModel : ViewModel() {
             termuxExecutor = TermuxCommandExecutor(ctx, viewModelScope)
             nodeInstaller = NodeJsInstaller(ctx)
 
-            // Setup Node.js (auto-download on first run)
+            // Check Node.js availability via shell session
+            // Note: Direct binary execution may fail due to Android sandboxing,
+            // but Node.js commands work fine within the shell session
             viewModelScope.launch {
-                try {
-                    if (!nodeInstaller!!.isInstalled()) {
-                        _terminalOutput.value += "📦 Setting up Node.js runtime...\n"
-                        _terminalOutput.value += "⏳ Downloading Node.js (~65MB)...\n"
-                        _terminalOutput.value += "   This is a one-time download.\n\n"
+                // Wait for shell to start
+                kotlinx.coroutines.delay(1000)
 
-                        nodeInstaller!!.install().fold(
-                            onSuccess = { msg ->
-                                _terminalOutput.value += "✅ Node.js installed successfully!\n"
-                                val version = nodeInstaller!!.getNodeVersion() ?: "unknown"
-                                _terminalOutput.value += "📌 Version: $version\n"
-                                _terminalOutput.value += "\n💡 You can now install AI CLI tools:\n"
-                                _terminalOutput.value += "   • npm install -g @anthropic-ai/claude-code\n"
-                                _terminalOutput.value += "   • npm install -g @google/gemini-cli\n"
-                                _terminalOutput.value += "   • npm install -g openai\n\n"
-                            },
-                            onFailure = { error ->
-                                _terminalOutput.value += "❌ Node.js installation failed\n"
-                                _terminalOutput.value += "📋 Error: ${error.message}\n\n"
-                                _terminalOutput.value += "💡 Alternative: Install Termux + Node.js\n"
-                                _terminalOutput.value += "   1. Install Termux from F-Droid or GitHub\n"
-                                _terminalOutput.value += "   2. Run: pkg install nodejs\n"
-                                _terminalOutput.value += "   3. Restart VibeTerminal\n\n"
-                                _terminalOutput.value += "ℹ️  Shell commands work without Node.js\n\n"
-                            }
-                        )
-                    } else {
-                        val version = nodeInstaller!!.getNodeVersion()
-                        _terminalOutput.value += "✅ Node.js $version ready\n"
-                        _terminalOutput.value += "💡 Install CLI tools with: npm install -g <package>\n\n"
+                // Check Node.js by executing command in shell
+                shellSession?.executeCommand("command -v node > /dev/null 2>&1 && node --version || echo 'node_not_found'")
+
+                // Wait for output
+                kotlinx.coroutines.delay(500)
+
+                val output = _terminalOutput.value
+                when {
+                    output.contains("node_not_found") -> {
+                        _terminalOutput.value += "\n💡 To enable Node.js and npm:\n"
+                        _terminalOutput.value += "   1. Install Termux from F-Droid or GitHub\n"
+                        _terminalOutput.value += "   2. Run: pkg install nodejs\n"
+                        _terminalOutput.value += "   3. Restart VibeTerminal\n\n"
+                        _terminalOutput.value += "ℹ️  Shell commands work without Node.js\n\n"
                     }
-                } catch (e: Exception) {
-                    _terminalOutput.value += "⚠️  Node.js setup error: ${e.message}\n\n"
+                    output.contains("v") && (output.contains("20.") || output.contains("21.") || output.contains("22.") || output.contains("18.")) -> {
+                        _terminalOutput.value += "\n✅ Node.js detected and ready!\n"
+                        _terminalOutput.value += "💡 Install AI CLI tools with:\n"
+                        _terminalOutput.value += "   • npm install -g @anthropic-ai/claude-code\n"
+                        _terminalOutput.value += "   • npm install -g @google/gemini-cli\n"
+                        _terminalOutput.value += "   • npm install -g openai\n\n"
+                    }
+                    else -> {
+                        _terminalOutput.value += "\n💡 Node.js status: Checking via shell...\n"
+                        _terminalOutput.value += "   Try running: node --version\n\n"
+                    }
                 }
             }
 
