@@ -103,36 +103,44 @@ class TerminalViewModel : ViewModel() {
             termuxExecutor = TermuxCommandExecutor(ctx, viewModelScope)
             nodeInstaller = NodeJsInstaller(ctx)
 
-            // Setup Node.js (auto-download on first run)
+            // Check Termux integration status
             viewModelScope.launch {
-                try {
-                    if (!nodeInstaller!!.isInstalled()) {
-                        _terminalOutput.value += "📦 Setting up Node.js runtime...\n"
-                        _terminalOutput.value += "⏳ Downloading Node.js (~67MB)...\n"
-                        _terminalOutput.value += "   This is a one-time download.\n\n"
+                kotlinx.coroutines.delay(500)
 
-                        nodeInstaller!!.install().fold(
-                            onSuccess = { msg ->
-                                _terminalOutput.value += "✅ Node.js installed successfully!\n"
-                                val version = nodeInstaller!!.getNodeVersion() ?: "unknown"
-                                _terminalOutput.value += "📌 Version: $version\n"
-                                _terminalOutput.value += "\n💡 You can now install AI CLI tools:\n"
-                                _terminalOutput.value += "   • npm install -g @anthropic-ai/claude-code\n"
-                                _terminalOutput.value += "   • npm install -g @google/gemini-cli\n"
-                                _terminalOutput.value += "   • npm install -g openai\n\n"
-                            },
-                            onFailure = { error ->
-                                _terminalOutput.value += "❌ Node.js installation failed\n"
-                                _terminalOutput.value += "📋 Error: ${error.message}\n\n"
-                            }
-                        )
-                    } else {
-                        val version = nodeInstaller!!.getNodeVersion()
-                        _terminalOutput.value += "✅ Node.js $version ready\n"
-                        _terminalOutput.value += "💡 Install CLI tools with: npm install -g <package>\n\n"
+                val termuxIntegration = com.vibeterminal.core.termux.TermuxIntegration(ctx)
+                val termuxStatus = termuxIntegration.getStatus()
+
+                when {
+                    !termuxStatus.installed -> {
+                        _terminalOutput.value += "\n📦 Setup Required\n\n"
+                        _terminalOutput.value += "VibeTerminal uses Termux for Node.js and CLI tools\n"
+                        _terminalOutput.value += "due to Android security restrictions.\n\n"
+                        _terminalOutput.value += "📱 One-time setup (3 steps):\n"
+                        _terminalOutput.value += "   1. Install Termux from F-Droid or GitHub\n"
+                        _terminalOutput.value += "      → https://f-droid.org/packages/com.termux/\n"
+                        _terminalOutput.value += "   2. Open Termux, run: pkg install nodejs\n"
+                        _terminalOutput.value += "   3. Install CLI: npm install -g @anthropic-ai/claude-code\n\n"
+                        _terminalOutput.value += "ℹ️  All VibeTerminal features (UI, translation, IME) work!\n"
+                        _terminalOutput.value += "   Termux just provides the execution engine.\n\n"
                     }
-                } catch (e: Exception) {
-                    _terminalOutput.value += "⚠️  Node.js setup error: ${e.message}\n\n"
+                    termuxStatus.accessibilityStatus.canExecute() -> {
+                        _terminalOutput.value += "\n✅ Termux Integration Active\n\n"
+                        if (termuxIntegration.isPackageInstalled("nodejs")) {
+                            _terminalOutput.value += "💡 Node.js detected in Termux!\n"
+                            _terminalOutput.value += "   You can now use npm and CLI tools:\n"
+                            _terminalOutput.value += "   • npm install -g @anthropic-ai/claude-code\n"
+                            _terminalOutput.value += "   • npm install -g @google/gemini-cli\n"
+                            _terminalOutput.value += "   • Then run: claude, gemini, etc.\n\n"
+                        } else {
+                            _terminalOutput.value += "📱 Next step: Install Node.js in Termux\n"
+                            _terminalOutput.value += "   Open Termux and run: pkg install nodejs\n\n"
+                        }
+                    }
+                    else -> {
+                        _terminalOutput.value += "\n⚠️  Termux Detected (Limited Access)\n\n"
+                        _terminalOutput.value += "Android restrictions prevent direct access.\n"
+                        _terminalOutput.value += "Please use Termux app for Node.js commands.\n\n"
+                    }
                 }
             }
 
