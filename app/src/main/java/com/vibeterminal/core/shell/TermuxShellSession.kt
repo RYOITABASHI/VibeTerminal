@@ -235,100 +235,53 @@ class TermuxShellSession(
     }
 
     /**
-     * Execute command via Termux RUN_COMMAND intent with result tracking
+     * Execute command directly via Termux bash (bypasses service restrictions)
      */
     private fun executeViaTermux(command: String) {
         scope.launch(Dispatchers.IO) {
             try {
                 _output.value += "$ $command\n"
-                _output.value += "→ Executing in Termux...\n"
+                _output.value += "→ Executing in Termux environment...\n"
 
-                // Generate unique ID for this command
-                val commandId = System.currentTimeMillis().toString()
-                val resultFile = "/data/data/com.termux/files/home/.vibeterminal_result_$commandId"
-                val outputFile = "/data/data/com.termux/files/home/.vibeterminal_output_$commandId"
+                // Try to execute directly using Termux bash
+                val termuxBash = "/data/data/com.termux/files/usr/bin/bash"
+                val processBuilder = ProcessBuilder(termuxBash, "-c", command)
 
-                // Wrap command to capture output and result
-                val wrappedCommand = """
-                    set -o pipefail
-                    { $command; } > $outputFile 2>&1
-                    echo $? > $resultFile
-                """.trimIndent()
-
-                val intent = android.content.Intent().apply {
-                    setClassName("com.termux", "com.termux.app.RunCommandService")
-                    action = "com.termux.RUN_COMMAND"
-                    putExtra("com.termux.RUN_COMMAND_PATH", "/data/data/com.termux/files/usr/bin/bash")
-                    putExtra("com.termux.RUN_COMMAND_ARGUMENTS", arrayOf("-c", wrappedCommand))
-                    putExtra("com.termux.RUN_COMMAND_WORKDIR", "/data/data/com.termux/files/home")
-                    putExtra("com.termux.RUN_COMMAND_BACKGROUND", false)
+                // Set Termux environment
+                processBuilder.environment().apply {
+                    put("HOME", "/data/data/com.termux/files/home")
+                    put("PREFIX", "/data/data/com.termux/files/usr")
+                    put("PATH", "/data/data/com.termux/files/usr/bin:/data/data/com.termux/files/usr/bin/applets:${get("PATH") ?: ""}")
+                    put("TMPDIR", "/data/data/com.termux/files/usr/tmp")
+                    put("SHELL", termuxBash)
+                    put("TERM", "xterm-256color")
+                    put("LANG", "en_US.UTF-8")
                 }
 
-                context.startService(intent)
+                processBuilder.directory(File("/data/data/com.termux/files/home"))
+                processBuilder.redirectErrorStream(true)
+
                 _output.value += "⏳ Running...\n"
 
-                // Poll for result (with timeout)
-                var attempts = 0
-                val maxAttempts = 60 // 60 seconds timeout
-                var resultFound = false
+                val process = processBuilder.start()
 
-                while (attempts < maxAttempts && !resultFound) {
-                    kotlinx.coroutines.delay(1000)
-                    attempts++
+                // Read output in real-time
+                val reader = BufferedReader(InputStreamReader(process.inputStream))
+                val output = StringBuilder()
+                var line: String?
 
-                    // Check if result file exists
-                    val resultFileObj = File(resultFile)
-                    if (resultFileObj.exists()) {
-                        resultFound = true
-
-                        // Read exit code
-                        val exitCode = try {
-                            resultFileObj.readText().trim().toIntOrNull() ?: -1
-                        } catch (e: Exception) {
-                            -1
-                        }
-
-                        // Read output
-                        val outputFileObj = File(outputFile)
-                        val output = try {
-                            if (outputFileObj.exists()) {
-                                outputFileObj.readText().trim()
-                            } else {
-                                ""
-                            }
-                        } catch (e: Exception) {
-                            ""
-                        }
-
-                        // Display result
-                        if (exitCode == 0) {
-                            _output.value += "✅ Command completed successfully\n"
-                            if (output.isNotEmpty()) {
-                                _output.value += output + "\n"
-                            }
-                        } else {
-                            _output.value += "❌ Command failed (exit code: $exitCode)\n"
-                            if (output.isNotEmpty()) {
-                                _output.value += "Error output:\n$output\n"
-                            }
-                        }
-                        _output.value += "\n"
-
-                        // Cleanup
-                        try {
-                            resultFileObj.delete()
-                            outputFileObj.delete()
-                        } catch (e: Exception) {
-                            // Ignore cleanup errors
-                        }
-                    } else if (attempts % 5 == 0) {
-                        _output.value += "⏳ Still running... (${attempts}s)\n"
-                    }
+                while (reader.readLine().also { line = it } != null) {
+                    output.append(line).append("\n")
+                    _output.value += line + "\n"
                 }
 
-                if (!resultFound) {
-                    _output.value += "⏱️ Timeout: Command took too long (>60s)\n"
-                    _output.value += "💡 Check Termux app for progress\n\n"
+                val exitCode = process.waitFor()
+
+                // Display result based on exit code
+                if (exitCode == 0) {
+                    _output.value += "✅ Command completed successfully (exit code: $exitCode)\n\n"
+                } else {
+                    _output.value += "❌ Command failed (exit code: $exitCode)\n\n"
                 }
 
             } catch (e: Exception) {
