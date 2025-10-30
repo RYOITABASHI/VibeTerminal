@@ -235,7 +235,7 @@ class TermuxShellSession(
     }
 
     /**
-     * Execute command via Termux RUN_COMMAND intent
+     * Execute command via Termux RUN_COMMAND intent with result tracking
      */
     private fun executeViaTermux(command: String) {
         scope.launch(Dispatchers.IO) {
@@ -243,21 +243,93 @@ class TermuxShellSession(
                 _output.value += "$ $command\n"
                 _output.value += "→ Executing in Termux...\n"
 
+                // Generate unique ID for this command
+                val commandId = System.currentTimeMillis().toString()
+                val resultFile = "/data/data/com.termux/files/home/.vibeterminal_result_$commandId"
+                val outputFile = "/data/data/com.termux/files/home/.vibeterminal_output_$commandId"
+
+                // Wrap command to capture output and result
+                val wrappedCommand = """
+                    set -o pipefail
+                    { $command; } > $outputFile 2>&1
+                    echo $? > $resultFile
+                """.trimIndent()
+
                 val intent = android.content.Intent().apply {
                     setClassName("com.termux", "com.termux.app.RunCommandService")
                     action = "com.termux.RUN_COMMAND"
                     putExtra("com.termux.RUN_COMMAND_PATH", "/data/data/com.termux/files/usr/bin/bash")
-                    putExtra("com.termux.RUN_COMMAND_ARGUMENTS", arrayOf("-c", command))
+                    putExtra("com.termux.RUN_COMMAND_ARGUMENTS", arrayOf("-c", wrappedCommand))
                     putExtra("com.termux.RUN_COMMAND_WORKDIR", "/data/data/com.termux/files/home")
                     putExtra("com.termux.RUN_COMMAND_BACKGROUND", false)
                 }
 
                 context.startService(intent)
+                _output.value += "⏳ Running...\n"
 
-                // Note: Output will appear in Termux app
-                kotlinx.coroutines.delay(500)
-                _output.value += "✓ Command sent to Termux\n"
-                _output.value += "💡 Check Termux app for output\n\n"
+                // Poll for result (with timeout)
+                var attempts = 0
+                val maxAttempts = 60 // 60 seconds timeout
+                var resultFound = false
+
+                while (attempts < maxAttempts && !resultFound) {
+                    kotlinx.coroutines.delay(1000)
+                    attempts++
+
+                    // Check if result file exists
+                    val resultFileObj = File(resultFile)
+                    if (resultFileObj.exists()) {
+                        resultFound = true
+
+                        // Read exit code
+                        val exitCode = try {
+                            resultFileObj.readText().trim().toIntOrNull() ?: -1
+                        } catch (e: Exception) {
+                            -1
+                        }
+
+                        // Read output
+                        val outputFileObj = File(outputFile)
+                        val output = try {
+                            if (outputFileObj.exists()) {
+                                outputFileObj.readText().trim()
+                            } else {
+                                ""
+                            }
+                        } catch (e: Exception) {
+                            ""
+                        }
+
+                        // Display result
+                        if (exitCode == 0) {
+                            _output.value += "✅ Command completed successfully\n"
+                            if (output.isNotEmpty()) {
+                                _output.value += output + "\n"
+                            }
+                        } else {
+                            _output.value += "❌ Command failed (exit code: $exitCode)\n"
+                            if (output.isNotEmpty()) {
+                                _output.value += "Error output:\n$output\n"
+                            }
+                        }
+                        _output.value += "\n"
+
+                        // Cleanup
+                        try {
+                            resultFileObj.delete()
+                            outputFileObj.delete()
+                        } catch (e: Exception) {
+                            // Ignore cleanup errors
+                        }
+                    } else if (attempts % 5 == 0) {
+                        _output.value += "⏳ Still running... (${attempts}s)\n"
+                    }
+                }
+
+                if (!resultFound) {
+                    _output.value += "⏱️ Timeout: Command took too long (>60s)\n"
+                    _output.value += "💡 Check Termux app for progress\n\n"
+                }
 
             } catch (e: Exception) {
                 _output.value += "❌ Failed to execute in Termux: ${e.message}\n"
