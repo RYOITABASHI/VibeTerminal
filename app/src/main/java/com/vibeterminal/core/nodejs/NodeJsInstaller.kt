@@ -17,9 +17,9 @@ class NodeJsInstaller(private val context: Context) {
 
     companion object {
         // Node.js download URL for Android ARM64
-        private const val NODE_VERSION = "v20.18.0"
+        private const val NODE_VERSION = "v22.19.0"
         private const val NODE_DOWNLOAD_URL = "https://github.com/RYOITABASHI/VibeTerminal/releases/download/node-binaries/node-$NODE_VERSION-android-arm64"
-        private const val NODE_EXPECTED_SIZE = 65_000_000L // ~65MB
+        private const val NODE_EXPECTED_SIZE = 67_429_088L // ~67MB
 
         private const val SETUP_SCRIPT = """
 #!/system/bin/sh
@@ -136,14 +136,11 @@ echo "npm: ${'$'}NODE_BIN/npm"
             if (isInstalled()) {
                 // Node.js is already installed, get version
                 val version = getNodeVersion()
-                return@withContext Result.success("Node.js $version detected (Termux)")
+                return@withContext Result.success("Node.js $version already installed")
             }
 
-            // Node.js not found anywhere - download is disabled
-            // User must install via Termux
-            return@withContext Result.failure(
-                Exception("Node.js not found. Please install Termux and run: pkg install nodejs")
-            )
+            // Node.js not found - download and install
+            downloadAndInstall()
         } catch (e: Exception) {
             Result.failure(Exception("Installation error: ${e.message}"))
         }
