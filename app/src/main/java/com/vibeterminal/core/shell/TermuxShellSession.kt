@@ -204,6 +204,7 @@ class TermuxShellSession(
 
     /**
      * Execute a command in the shell session
+     * Automatically routes to Termux if needed
      */
     fun executeCommand(command: String) {
         if (!_isRunning.value) {
@@ -211,15 +212,57 @@ class TermuxShellSession(
             return
         }
 
-        try {
-            _output.value += "$ $command\n"  // Echo command to terminal
-            shellProcess?.outputStream?.apply {
-                write("$command\n".toByteArray())
-                flush()
+        // Check if this command should run in Termux
+        val commandName = command.trim().split(" ").firstOrNull() ?: ""
+        val termuxCommands = setOf("claude", "gemini", "codex", "node", "npm", "npx", "python", "python3", "pip")
+
+        if (commandName in termuxCommands) {
+            // Execute via Termux RUN_COMMAND
+            executeViaTermux(command)
+        } else {
+            // Execute in local shell
+            try {
+                _output.value += "$ $command\n"
+                shellProcess?.outputStream?.apply {
+                    write("$command\n".toByteArray())
+                    flush()
+                }
+            } catch (e: Exception) {
+                _output.value += "❌ Command execution error: ${e.message}\n"
+                _output.value += "📋 Stack trace: ${e.stackTraceToString()}\n"
             }
-        } catch (e: Exception) {
-            _output.value += "❌ Command execution error: ${e.message}\n"
-            _output.value += "📋 Stack trace: ${e.stackTraceToString()}\n"
+        }
+    }
+
+    /**
+     * Execute command via Termux RUN_COMMAND intent
+     */
+    private fun executeViaTermux(command: String) {
+        scope.launch(Dispatchers.IO) {
+            try {
+                _output.value += "$ $command\n"
+                _output.value += "→ Executing in Termux...\n"
+
+                val intent = android.content.Intent().apply {
+                    setClassName("com.termux", "com.termux.app.RunCommandService")
+                    action = "com.termux.RUN_COMMAND"
+                    putExtra("com.termux.RUN_COMMAND_PATH", "/data/data/com.termux/files/usr/bin/bash")
+                    putExtra("com.termux.RUN_COMMAND_ARGUMENTS", arrayOf("-c", command))
+                    putExtra("com.termux.RUN_COMMAND_WORKDIR", "/data/data/com.termux/files/home")
+                    putExtra("com.termux.RUN_COMMAND_BACKGROUND", false)
+                }
+
+                context.startService(intent)
+
+                // Note: Output will appear in Termux app
+                kotlinx.coroutines.delay(500)
+                _output.value += "✓ Command sent to Termux\n"
+                _output.value += "💡 Check Termux app for output\n\n"
+
+            } catch (e: Exception) {
+                _output.value += "❌ Failed to execute in Termux: ${e.message}\n"
+                _output.value += "💡 Make sure Termux app is installed\n\n"
+            }
         }
     }
 
