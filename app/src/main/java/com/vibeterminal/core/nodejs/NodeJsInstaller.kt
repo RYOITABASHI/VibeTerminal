@@ -11,7 +11,9 @@ import java.io.FileOutputStream
  */
 class NodeJsInstaller(private val context: Context) {
 
-    private val nodeHome = File(context.filesDir, "nodejs")
+    // Use cacheDir instead of filesDir for better SELinux compatibility
+    // Android allows execution from cache directory with fewer restrictions
+    private val nodeHome = File(context.cacheDir, "nodejs")
     private val nodeBin = File(nodeHome, "bin")
     val nodeExecutable = File(nodeBin, "node")
 

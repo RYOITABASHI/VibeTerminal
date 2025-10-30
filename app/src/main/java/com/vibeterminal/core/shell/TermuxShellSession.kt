@@ -116,12 +116,13 @@ class TermuxShellSession(
                 put("HOME", context.filesDir.absolutePath)
                 put("TMPDIR", context.cacheDir.absolutePath)
                 // Add Node.js, Termux and app bin directories to PATH
-                val nodeBin = "${context.filesDir.absolutePath}/nodejs/bin"
+                // Use cacheDir for Node.js for better SELinux compatibility
+                val nodeBin = "${context.cacheDir.absolutePath}/nodejs/bin"
                 val termuxBin = "$TERMUX_PREFIX/bin:$TERMUX_PREFIX/bin/applets"
                 val appBin = "${context.filesDir.absolutePath}/bin"
                 put("PATH", "$nodeBin:$termuxBin:$appBin:${get("PATH") ?: ""}")
                 // Add Node.js module paths
-                val nodeModules = "${context.filesDir.absolutePath}/nodejs/lib/node_modules"
+                val nodeModules = "${context.cacheDir.absolutePath}/nodejs/lib/node_modules"
                 put("NODE_PATH", "$nodeModules:$TERMUX_PREFIX/lib/node_modules")
             }
 
@@ -143,8 +144,9 @@ class TermuxShellSession(
 
             // Set PATH and prompt explicitly in the shell
             shellProcess?.outputStream?.apply {
-                // Export PATH to make Termux binaries accessible
-                val nodeBin = "${context.filesDir.absolutePath}/nodejs/bin"
+                // Export PATH to make binaries accessible
+                // Use cacheDir for Node.js for better SELinux compatibility
+                val nodeBin = "${context.cacheDir.absolutePath}/nodejs/bin"
                 val termuxBin = "$TERMUX_PREFIX/bin:$TERMUX_PREFIX/bin/applets"
                 val appBin = "${context.filesDir.absolutePath}/bin"
                 write("export PATH=$nodeBin:$termuxBin:$appBin:\$PATH\n".toByteArray())
