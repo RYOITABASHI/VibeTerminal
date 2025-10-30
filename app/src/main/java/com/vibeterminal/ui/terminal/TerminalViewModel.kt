@@ -103,39 +103,29 @@ class TerminalViewModel : ViewModel() {
             termuxExecutor = TermuxCommandExecutor(ctx, viewModelScope)
             nodeInstaller = NodeJsInstaller(ctx)
 
-            // Check Node.js availability via shell session
-            // Note: Direct binary execution may fail due to Android sandboxing,
-            // but Node.js commands work fine within the shell session
+            // Check Node.js availability
+            // Note: Due to Android SELinux restrictions, VibeTerminal cannot
+            // directly execute Termux binaries. Use Termux app for Node.js/npm commands.
             viewModelScope.launch {
-                // Wait for shell to start
-                kotlinx.coroutines.delay(1000)
-
-                // Check Node.js by executing command in shell
-                shellSession?.executeCommand("command -v node > /dev/null 2>&1 && node --version || echo 'node_not_found'")
-
-                // Wait for output
                 kotlinx.coroutines.delay(500)
 
-                val output = _terminalOutput.value
-                when {
-                    output.contains("node_not_found") -> {
-                        _terminalOutput.value += "\n💡 To enable Node.js and npm:\n"
-                        _terminalOutput.value += "   1. Install Termux from F-Droid or GitHub\n"
-                        _terminalOutput.value += "   2. Run: pkg install nodejs\n"
-                        _terminalOutput.value += "   3. Restart VibeTerminal\n\n"
-                        _terminalOutput.value += "ℹ️  Shell commands work without Node.js\n\n"
-                    }
-                    output.contains("v") && (output.contains("20.") || output.contains("21.") || output.contains("22.") || output.contains("18.")) -> {
-                        _terminalOutput.value += "\n✅ Node.js detected and ready!\n"
-                        _terminalOutput.value += "💡 Install AI CLI tools with:\n"
-                        _terminalOutput.value += "   • npm install -g @anthropic-ai/claude-code\n"
-                        _terminalOutput.value += "   • npm install -g @google/gemini-cli\n"
-                        _terminalOutput.value += "   • npm install -g openai\n\n"
-                    }
-                    else -> {
-                        _terminalOutput.value += "\n💡 Node.js status: Checking via shell...\n"
-                        _terminalOutput.value += "   Try running: node --version\n\n"
-                    }
+                if (termuxExecutor?.isTermuxInstalled() == true) {
+                    _terminalOutput.value += "\n✅ Termux detected!\n"
+                    _terminalOutput.value += "\n💡 To use Node.js, npm, and CLI tools:\n"
+                    _terminalOutput.value += "   Open Termux app and run commands there.\n"
+                    _terminalOutput.value += "   Android security prevents cross-app execution.\n\n"
+                    _terminalOutput.value += "📱 Install CLI tools in Termux:\n"
+                    _terminalOutput.value += "   1. Open Termux app\n"
+                    _terminalOutput.value += "   2. Run: pkg install nodejs\n"
+                    _terminalOutput.value += "   3. Run: npm install -g @anthropic-ai/claude-code\n"
+                    _terminalOutput.value += "   4. Run: claude (or other CLI tools)\n\n"
+                    _terminalOutput.value += "ℹ️  Basic shell commands work in VibeTerminal\n\n"
+                } else {
+                    _terminalOutput.value += "\n💡 To enable Node.js and CLI tools:\n"
+                    _terminalOutput.value += "   1. Install Termux from F-Droid or GitHub\n"
+                    _terminalOutput.value += "   2. Open Termux and run: pkg install nodejs\n"
+                    _terminalOutput.value += "   3. Install CLI tools: npm install -g <package>\n\n"
+                    _terminalOutput.value += "ℹ️  Shell commands work without Node.js\n\n"
                 }
             }
 
