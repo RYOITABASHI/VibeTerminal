@@ -19,6 +19,9 @@
 
     <!-- Voice input / Speech recognition -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Termux integration for CLI tools -->
+    <uses-permission android:name="com.termux.permission.RUN_COMMAND" />
     <queries>
         <intent>
             <action android:name="android.speech.RecognitionService" />
