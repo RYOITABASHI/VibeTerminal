@@ -183,13 +183,23 @@ echo "npm: ${'$'}NODE_BIN/npm"
                 outputStream.close()
                 inputStream.close()
 
-                // Make executable
-                if (!nodeExecutable.setExecutable(true, false)) {
-                    return@withContext Result.failure(Exception("Failed to set executable permission"))
+                // Make executable using chmod command (more reliable on Android)
+                try {
+                    val chmodProcess = ProcessBuilder("chmod", "755", nodeExecutable.absolutePath)
+                        .redirectErrorStream(true)
+                        .start()
+                    chmodProcess.waitFor()
+                    if (chmodProcess.exitValue() != 0) {
+                        // Fallback to Java method
+                        nodeExecutable.setExecutable(true, false)
+                    }
+                } catch (e: Exception) {
+                    // Fallback to Java method
+                    nodeExecutable.setExecutable(true, false)
                 }
 
-                // Verify the binary works
-                val testProcess = ProcessBuilder(nodeExecutable.absolutePath, "--version")
+                // Verify the binary works using sh -c
+                val testProcess = ProcessBuilder("sh", "-c", "${nodeExecutable.absolutePath} --version")
                     .redirectErrorStream(true)
                     .start()
                 val testOutput = testProcess.inputStream.bufferedReader().readText()
