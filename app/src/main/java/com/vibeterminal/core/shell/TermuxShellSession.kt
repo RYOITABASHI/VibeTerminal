@@ -141,8 +141,15 @@ class TermuxShellSession(
 
             startOutputReader()
 
-            // Set a simple prompt (no extra newlines to avoid duplicate prompts)
+            // Set PATH and prompt explicitly in the shell
             shellProcess?.outputStream?.apply {
+                // Export PATH to make Termux binaries accessible
+                val nodeBin = "${context.filesDir.absolutePath}/nodejs/bin"
+                val termuxBin = "$TERMUX_PREFIX/bin:$TERMUX_PREFIX/bin/applets"
+                val appBin = "${context.filesDir.absolutePath}/bin"
+                write("export PATH=$nodeBin:$termuxBin:$appBin:\$PATH\n".toByteArray())
+                write("export HOME=${context.filesDir.absolutePath}\n".toByteArray())
+                write("export TMPDIR=${context.cacheDir.absolutePath}\n".toByteArray())
                 write("PS1='$ '\n".toByteArray())
                 flush()
             }
