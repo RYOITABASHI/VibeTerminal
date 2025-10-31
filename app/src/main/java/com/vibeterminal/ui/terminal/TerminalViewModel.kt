@@ -144,18 +144,11 @@ class TerminalViewModel : ViewModel() {
                 }
             }
 
-            // Start collecting output BEFORE starting the shell
-            // This ensures we capture all initialization messages
+            // Collect output from Termux command executor
             viewModelScope.launch {
-                shellSession?.output?.collect { newOutput ->
+                termuxExecutor?.output?.collect { newOutput ->
                     _terminalOutput.value = newOutput
                 }
-            }
-
-            // Now start the shell session
-            if (!shellSession!!.start()) {
-                _terminalOutput.value += "⚠️  Shell initialization completed with warnings\n"
-                _terminalOutput.value += "💡 Basic shell functionality is available\n\n"
             }
         }
     }
@@ -175,37 +168,19 @@ class TerminalViewModel : ViewModel() {
     }
 
     /**
-     * Execute a command in the persistent shell session
+     * Execute a command using Termux RUN_COMMAND intent
      */
     fun executeCommand(command: String) {
         viewModelScope.launch {
             _currentCommand.value = command
 
-            // Check if this is a Termux CLI command (claude, codex, etc.)
-            if (termuxExecutor?.shouldUseTermux(command) == true) {
-                // Try to execute in Termux first
-                val success = termuxExecutor?.executeInTermux(command)
-                if (success == true) {
-                    // Command sent to Termux
-                    // Note: We may not get output back directly
-                    _terminalOutput.value += "📱 Executing in Termux: $command\n"
-                    _terminalOutput.value += "⚠️  Output will appear in Termux app\n"
-                    _terminalOutput.value += "💡 Tip: Check Termux notifications for results\n\n"
-                } else {
-                    // Fallback to shell session
-                    _terminalOutput.value += "⚠️  Termux not available, trying in system shell...\n"
-                    shellSession?.executeCommand(command)
-                }
-            } else {
-                // Regular shell command
-                shellSession?.executeCommand(command)
-            }
+            // Execute all commands via Termux for full environment support
+            termuxExecutor?.executeCommand(command)
 
-            // Translate output if enabled
-            // Note: Translation now happens after output appears
+            // Translate output if enabled (after command completes)
             if (_isTranslationVisible.value) {
                 // Delay to let output accumulate
-                kotlinx.coroutines.delay(500)
+                kotlinx.coroutines.delay(2000)
                 val recentOutput = _terminalOutput.value.takeLast(1000)
                 translateOutput(command, recentOutput)
             }

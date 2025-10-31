@@ -144,12 +144,8 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation("com.google.code.gson:gson:2.10.1")
 
-    // Termux Libraries (via JitPack)
-    // Note: Using GitHub releases instead of JitPack due to 401 errors
-    // implementation("com.github.termux.termux-app:termux-shared:v0.118.0")
-    // implementation("com.github.termux.termux-app:terminal-view:v0.118.0")
-    // TODO: Add Termux libraries when JitPack issue is resolved
-    // For now, build without Termux terminal emulator
+    // Termux terminal emulator will be integrated directly as source files
+    // No external dependencies needed for now
 
     // Testing
     testImplementation("junit:junit:4.13.2")

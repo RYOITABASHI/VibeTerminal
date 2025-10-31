@@ -71,6 +71,11 @@
             </intent-filter>
         </activity>
 
+        <!-- Termux Result Receiver Service -->
+        <service
+            android:name=".core.shell.TermuxResultReceiver"
+            android:exported="false" />
+
         <!-- FileProvider for camera photos -->
         <provider
             android:name="androidx.core.content.FileProvider"
